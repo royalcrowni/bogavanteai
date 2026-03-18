@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bogavante.ai</title>
+  <link rel="icon" type="image/png" href="FavIconBogavante.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     /* ── Theme tokens ── */
@@ -68,10 +69,16 @@
       z-index: 700;
       flex-shrink: 0;
       transition: background 0.2s, border-color 0.2s;
+      position: relative;
     }
-    .mobile-nav-left { display: flex; align-items: center; gap: 8px; }
-    .mobile-logo-emoji { font-size: 20px; line-height: 1; }
-    .mobile-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .mobile-nav-left {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+    }
+    .mobile-logo-img { height: 40px; width: auto; display: block; }
     .mobile-nav-right { display: flex; align-items: center; gap: 2px; }
 
     /* ═══════════════════════════════════
@@ -114,13 +121,20 @@
     /* Sidebar header */
     .sidebar-header { padding: 20px 24px 14px; flex-shrink: 0; }
     .logo-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
+      display: flex; align-items: center; justify-content: flex-end;
+      position: relative;
       margin-bottom: 14px;
+      min-height: 76px;
     }
-    .logo-left { display: flex; align-items: flex-start; gap: 10px; }
-    .logo-emoji { font-size: 24px; line-height: 1; margin-top: 3px; }
-    .logo-title { font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--text); }
-    .header-btns { display: flex; gap: 4px; align-items: center; margin-top: 2px; }
+    .logo-left {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+    }
+    .sidebar-logo-img { height: 76px; width: auto; display: block; max-width: 300px; }
+    .header-btns { display: flex; gap: 4px; align-items: center; margin-left: auto; }
 
     /* Icon button */
     .icon-btn {
@@ -498,8 +512,7 @@
 <!-- ═══════════════ MOBILE NAV ═══════════════ -->
 <nav id="mobileNav">
   <div class="mobile-nav-left">
-    <span class="mobile-logo-emoji">🦞</span>
-    <span class="mobile-title">Bogavante.ai</span>
+    <img src="logo.svg" class="mobile-logo-img" alt="Bogavante.ai" />
   </div>
   <div class="mobile-nav-right">
     <button class="icon-btn" id="mobileRefreshBtn" title="Refresh">
@@ -532,8 +545,7 @@
       <!-- Desktop logo row (hidden on mobile) -->
       <div class="logo-row sidebar-logo-row">
         <div class="logo-left">
-          <span class="logo-emoji">🦞</span>
-          <h1 class="logo-title">Bogavante.ai</h1>
+          <img src="logo.svg" class="sidebar-logo-img" alt="Bogavante.ai" />
         </div>
         <div class="header-btns">
           <button class="icon-btn" id="refreshBtn" title="Refresh">
