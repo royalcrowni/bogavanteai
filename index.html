@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bogavante.ai</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    /* ── Theme tokens ── */
+    :root {
+      --bg:               #ffffff;
+      --card-bg:          #ffffff;
+      --border:           #e5e7eb;
+      --text:             #111827;
+      --text-muted:       #6b7280;
+      --sidebar-bg:       #ffffff;
+      --search-bg:        #f9fafb;
+      --hover-bg:         rgba(0,0,0,0.03);
+      --pill-bg:          #ffffff;
+      --pill-active-bg:   #111827;
+      --pill-active-text: #ffffff;
+      --modal-bg:         #ffffff;
+      --popup-bg:         #ffffff;
+      --popup-icon-bg:    #f3f4f6;
+    }
+    .dark {
+      --bg:               #0f1014;
+      --card-bg:          #18191d;
+      --border:           #2d2e33;
+      --text:             #f9fafb;
+      --text-muted:       #9ca3af;
+      --sidebar-bg:       #0f1014;
+      --search-bg:        #18191d;
+      --hover-bg:         rgba(255,255,255,0.04);
+      --pill-bg:          #18191d;
+      --pill-active-bg:   #f9fafb;
+      --pill-active-text: #0f1014;
+      --modal-bg:         #18191d;
+      --popup-bg:         #1e1f23;
+      --popup-icon-bg:    #2d2e33;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══════════════════════════════════
+       MOBILE TOP NAV (hidden on desktop)
+       ═══════════════════════════════════ */
+    #mobileNav {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      height: 52px;
+      min-height: 52px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 700;
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .mobile-nav-left { display: flex; align-items: center; gap: 8px; }
+    .mobile-logo-emoji { font-size: 20px; line-height: 1; }
+    .mobile-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .mobile-nav-right { display: flex; align-items: center; gap: 2px; }
+
+    /* ═══════════════════════════════════
+       MAIN LAYOUT
+       ═══════════════════════════════════ */
+    #mainLayout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ═══════════════════════════════════
+       SIDEBAR BACKDROP (mobile only)
+       ═══════════════════════════════════ */
+    #sidebarBackdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 550;
+    }
+
+    /* ═══════════════════════════════════
+       SIDEBAR
+       ═══════════════════════════════════ */
+    #sidebar {
+      width: 380px;
+      min-width: 380px;
+      height: 100%;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 600;
+      transition: background 0.2s, border-color 0.2s, left 0.3s ease;
+    }
+
+    /* Sidebar header */
+    .sidebar-header { padding: 20px 24px 14px; flex-shrink: 0; }
+    .logo-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .logo-left { display: flex; align-items: flex-start; gap: 10px; }
+    .logo-emoji { font-size: 24px; line-height: 1; margin-top: 3px; }
+    .logo-title { font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--text); }
+    .header-btns { display: flex; gap: 4px; align-items: center; margin-top: 2px; }
+
+    /* Icon button */
+    .icon-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s;
+    }
+    .icon-btn:hover { background: var(--hover-bg); color: var(--text); }
+    .icon-btn svg { display: block; pointer-events: none; }
+
+    /* Search */
+    .search-wrap { position: relative; }
+    .search-icon {
+      position: absolute; left: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted); pointer-events: none; display: flex;
+    }
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--search-bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s, background 0.2s;
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus { border-color: #9ca3af; }
+
+    /* Filters */
+    .filters {
+      padding: 10px 24px 12px;
+      display: flex; flex-wrap: wrap; gap: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--pill-bg);
+      color: var(--text);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+      min-height: 28px;
+    }
+    .pill:hover { transform: scale(1.05); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .pill:active { transform: scale(0.96); }
+    .pill.active {
+      background: var(--pill-active-bg);
+      color: var(--pill-active-text);
+      border-color: var(--pill-active-bg);
+    }
+    .pill-count { font-weight: 400; opacity: 0.65; }
+
+    /* Spots count */
+    .spots-count { padding: 10px 24px 6px; font-size: 13px; font-weight: 500; color: var(--text-muted); flex-shrink: 0; }
+
+    /* List */
+    .spots-list { flex: 1; overflow-y: auto; padding: 4px 12px 12px; }
+    .spots-list::-webkit-scrollbar { width: 4px; }
+    .spots-list::-webkit-scrollbar-track { background: transparent; }
+    .spots-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Cards */
+    .spot-card {
+      padding: 12px 14px; border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      touch-action: manipulation;
+    }
+    .spot-card:hover { background: var(--hover-bg); }
+    .dark .spot-card:hover { border-color: #3d3e44; }
+    .spot-card.selected { border-color: #6b7280; box-shadow: 0 0 0 1px #6b7280; }
+    .card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .card-icon { font-size: 26px; flex-shrink: 0; margin-top: 1px; }
+    .card-body { flex: 1; min-width: 0; }
+    .card-name-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px; }
+    .card-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .card-price { font-size: 14px; font-weight: 600; flex-shrink: 0; }
+    .price-1 { color: #16a34a; }
+    .price-2 { color: #d97706; }
+    .price-3 { color: #ea580c; }
+    .card-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.45; }
+    .card-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 12px; color: var(--text); font-weight: 500;
+    }
+    .card-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .card-time { font-size: 12px; color: var(--text-muted); }
+    .directions-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 13px; font-weight: 500; color: var(--text);
+      text-decoration: none; padding: 4px 8px; border-radius: 6px;
+      transition: background 0.15s; border: none; background: transparent; cursor: pointer;
+    }
+    .directions-link:hover { background: var(--hover-bg); }
+    /* Mobile: truncate "Directions" to "Dir" */
+    .dir-full { display: inline; }
+    .dir-short { display: none; }
+
+    /* ═══════════════════════════════════
+       MAP CONTAINER
+       ═══════════════════════════════════ */
+    #mapContainer { flex: 1; position: relative; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+
+    /* Hide Leaflet attribution */
+    .leaflet-control-attribution { display: none !important; }
+
+    /* Leaflet zoom control */
+    .leaflet-control-zoom {
+      border: none !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18) !important;
+      border-radius: 8px !important;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      width: 36px !important; height: 36px !important;
+      line-height: 36px !important; font-size: 18px !important;
+      color: #374151 !important; background: white !important;
+      border: none !important; border-bottom: 1px solid #e5e7eb !important;
+      transition: background 0.15s !important;
+    }
+    .leaflet-control-zoom a:last-child { border-bottom: none !important; }
+    .leaflet-control-zoom a:hover { background: #f3f4f6 !important; }
+    .dark .leaflet-control-zoom a { background: #18191d !important; color: #f9fafb !important; border-bottom-color: #2d2e33 !important; }
+    .dark .leaflet-control-zoom a:hover { background: #222327 !important; }
+
+    /* Location button */
+    .locate-btn {
+      width: 36px; height: 36px;
+      background: white; border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #374151; transition: background 0.15s;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    }
+    .locate-btn:hover { background: #f3f4f6; }
+    .dark .locate-btn { background: #18191d; border-color: rgba(255,255,255,0.15); color: #f9fafb; }
+    .dark .locate-btn:hover { background: #222327; }
+
+    /* ═══════════════════════════════════
+       ABOUT BUTTON
+       ═══════════════════════════════════ */
+    #aboutBtn {
+      position: absolute;
+      bottom: 20px; right: 14px;
+      z-index: 900;
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      background: #f0f0f0;
+      box-shadow: 3px 3px 7px rgba(0,0,0,0.12), -1px -1px 3px rgba(255,255,255,0.9);
+      color: #6b7280;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    #aboutBtn:hover { background: #e8e8e8; color: #374151; }
+    .dark #aboutBtn {
+      background: #2a2b30;
+      box-shadow: 3px 3px 7px rgba(0,0,0,0.4), -1px -1px 3px rgba(255,255,255,0.04);
+      color: #9ca3af;
+    }
+    .dark #aboutBtn:hover { background: #333438; color: #d1d5db; }
+
+    /* ═══════════════════════════════════
+       CUSTOM LEAFLET POPUP
+       ═══════════════════════════════════ */
+    .spot-popup .leaflet-popup-content-wrapper {
+      padding: 0;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+      border: none;
+      overflow: hidden;
+      background: var(--popup-bg);
+      min-width: 280px;
+    }
+    .spot-popup .leaflet-popup-content {
+      margin: 0 !important;
+      width: auto !important;
+    }
+    .spot-popup .leaflet-popup-close-button { display: none; }
+    .spot-popup .leaflet-popup-tip {
+      background: var(--popup-bg);
+      box-shadow: none;
+    }
+    .dark .spot-popup .leaflet-popup-tip { background: var(--popup-bg); }
+
+    /* Popup inner card */
+    .popup-card {
+      background: var(--popup-bg);
+      padding: 16px 18px;
+      min-width: 280px;
+      max-width: 320px;
+      position: relative;
+    }
+    .popup-close-btn {
+      position: absolute; top: 14px; right: 14px;
+      width: 26px; height: 26px;
+      border-radius: 50%; border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 18px; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .popup-close-btn:hover { background: var(--hover-bg); color: var(--text); }
+    .popup-header {
+      display: flex; align-items: flex-start; gap: 12px;
+      margin-bottom: 12px; padding-right: 24px;
+    }
+    .popup-icon-box {
+      width: 50px; height: 50px; flex-shrink: 0;
+      border-radius: 12px;
+      background: var(--popup-icon-bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+    .popup-header-info { flex: 1; min-width: 0; }
+    .popup-name-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 6px;
+    }
+    .popup-name { font-size: 16px; font-weight: 700; color: var(--text); }
+    .popup-price { font-size: 15px; font-weight: 700; flex-shrink: 0; }
+    .popup-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px;
+      background: var(--search-bg);
+      border: 1px solid var(--border);
+      font-size: 12px; font-weight: 500; color: var(--text);
+    }
+    .popup-desc { font-size: 14px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; }
+    .popup-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 10px; }
+    .popup-footer { display: flex; align-items: center; justify-content: space-between; }
+    .popup-time { font-size: 13px; color: var(--text-muted); }
+    .popup-dir {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 13px; font-weight: 600; color: #3b82f6;
+      text-decoration: none; padding: 4px 8px; border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .popup-dir:hover { background: rgba(59,130,246,0.08); }
+
+    /* ═══════════════════════════════════
+       ABOUT MODAL
+       ═══════════════════════════════════ */
+    #aboutOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    #aboutOverlay.open { display: flex; }
+    #aboutModal {
+      background: var(--modal-bg);
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 400px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    .modal-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .modal-header-emoji { font-size: 22px; }
+    .modal-header h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .modal-close-x {
+      position: absolute; top: 18px; right: 18px;
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: transparent; color: var(--text-muted);
+      font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .modal-close-x:hover { background: var(--hover-bg); }
+    .modal-body {
+      font-size: 15px; color: var(--text-muted); line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .modal-body strong { color: var(--text); }
+    .modal-body a {
+      color: #DE6E38; font-weight: 700;
+      text-decoration: none;
+    }
+    .modal-body a:hover { text-decoration: underline; }
+    .modal-close-btn {
+      width: 100%; padding: 14px;
+      border: none; border-radius: 12px;
+      background: #3b82f6; color: white;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .modal-close-btn:hover { background: #2563eb; }
+
+    /* Refresh spin */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning { animation: spin 0.6s linear; }
+
+    /* ═══════════════════════════════════
+       RESPONSIVE — MOBILE (< 640px)
+       ═══════════════════════════════════ */
+    @media (max-width: 639px) {
+      #mobileNav { display: flex; }
+
+      #sidebar {
+        position: fixed;
+        top: 52px;
+        left: -110%;
+        width: min(88vw, 380px);
+        height: calc(100vh - 52px);
+        z-index: 600;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.12);
+      }
+      #sidebar.open { left: 0; }
+      #sidebarBackdrop.open { display: block; }
+
+      /* Hide desktop logo row in mobile (nav handles it) */
+      .sidebar-logo-row { display: none; }
+
+      /* Show backdrop */
+      .sidebar-header { padding: 16px 16px 12px; }
+
+      .dir-full { display: none; }
+      .dir-short { display: inline; }
+
+      .spot-card { padding: 10px 12px; }
+      .card-name { font-size: 14px; }
+      .card-desc { font-size: 12px; }
+
+      /* About button position on mobile */
+      #aboutBtn { bottom: 16px; right: 10px; padding: 7px 12px; font-size: 12px; }
+
+      /* Popup narrower on mobile */
+      .spot-popup .leaflet-popup-content-wrapper { min-width: 260px !important; }
+      .popup-card { min-width: 260px; max-width: calc(100vw - 40px); }
+    }
+
+    /* ═══════════════════════════════════
+       RESPONSIVE — TABLET (640–1023px)
+       ═══════════════════════════════════ */
+    @media (min-width: 640px) and (max-width: 1023px) {
+      #sidebar {
+        width: 320px;
+        min-width: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ MOBILE NAV ═══════════════ -->
+<nav id="mobileNav">
+  <div class="mobile-nav-left">
+    <span class="mobile-logo-emoji">🦞</span>
+    <span class="mobile-title">Bogavante.ai</span>
+  </div>
+  <div class="mobile-nav-right">
+    <button class="icon-btn" id="mobileRefreshBtn" title="Refresh">
+      <svg id="mobileRefreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="mobileThemeBtn" title="Toggle dark mode">
+      <svg id="mobileMoonIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg id="mobileSunIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+    <button class="icon-btn" id="hamburgerBtn" title="Open list">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<!-- Sidebar backdrop (mobile overlay) -->
+<div id="sidebarBackdrop"></div>
+
+<!-- ═══════════════ MAIN LAYOUT ═══════════════ -->
+<div id="mainLayout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <!-- Desktop logo row (hidden on mobile) -->
+      <div class="logo-row sidebar-logo-row">
+        <div class="logo-left">
+          <span class="logo-emoji">🦞</span>
+          <h1 class="logo-title">Bogavante.ai</h1>
+        </div>
+        <div class="header-btns">
+          <button class="icon-btn" id="refreshBtn" title="Refresh">
+            <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="themeBtn" title="Toggle dark mode">
+            <svg id="moonIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg id="sunIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input id="searchInput" class="search-input" type="text" placeholder="Search spots..." autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="filters" id="filtersBar">
+      <div class="pill active" data-filter="type" data-value="Restaurant">
+        <span>🍴</span><span>Restaurant</span><span class="pill-count" id="countRestaurant">(9)</span>
+      </div>
+      <div class="pill active" data-filter="subtype" data-value="Seafood">
+        <span>🦞</span><span>Seafood</span><span class="pill-count" id="countSeafood">(9)</span>
+      </div>
+    </div>
+
+    <div class="spots-count" id="spotsCount">9 spots</div>
+    <div class="spots-list" id="spotsList"></div>
+  </aside>
+
+  <!-- ── MAP ── -->
+  <div id="mapContainer">
+    <div id="map"></div>
+
+    <!-- About button (overlaid on map) -->
+    <button id="aboutBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      About
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════ ABOUT MODAL ═══════════════ -->
+<div id="aboutOverlay">
+  <div id="aboutModal">
+    <button class="modal-close-x" id="modalCloseX">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-header">
+      <span class="modal-header-emoji">🦞</span>
+      <h2>About</h2>
+    </div>
+    <p class="modal-body">
+      Made by <strong>Lobster Lovers</strong> to share their favorite Lobster spots worldwide. Built by <a href="https://www.manzano.cc" target="_blank" rel="noopener">manzano.cc</a>.
+    </p>
+    <button class="modal-close-btn" id="modalCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ════════════════════════════════════
+// DATA
+// ════════════════════════════════════
+const LOCATIONS = [
+  { id:1, name:"The Stoned Crab",           description:"Best Lobster in the Keys",              price:2, type:"Restaurant", subtype:"Seafood", lastVisited:"2025-07-15", lat:24.7136,           lng:-81.0785,           directionsUrl:"https://maps.app.goo.gl/rkJcZKvjPFn9df6k6" },
+  { id:2, name:"Carmín",                    description:"Very bad Lobster, Taste Poorly.",        price:1, type:"Restaurant", subtype:"Seafood", lastVisited:"2024-04-15", lat:18.4578102,         lng:-65.9861679,        directionsUrl:"https://maps.app.goo.gl/N4hiwDeJFzzavsQu6" },
+  { id:3, name:"Hoy Como Ayer",             description:"Great Lobster",                          price:1, type:"Restaurant", subtype:"Seafood", lastVisited:"2022-12-15", lat:18.13894,           lng:-67.18094,          directionsUrl:"https://maps.app.goo.gl/PZjXokodTxpbyG8CA" },
+  { id:4, name:"Los Montes de Galicia",     description:"Expensive Lobster and very bad taste.",  price:3, type:"Restaurant", subtype:"Seafood", lastVisited:"2026-02-15", lat:40.434849,          lng:-3.668375,          directionsUrl:"https://maps.app.goo.gl/2BarrHgRBNxBKqf39" },
+  { id:5, name:"Casa Gallega",              description:"Best Lobster in Madrid.",                price:3, type:"Restaurant", subtype:"Seafood", lastVisited:"2025-12-15", lat:40.4171263,         lng:-3.7073245,         directionsUrl:"https://maps.app.goo.gl/DVPQnBqT9rFXN6qW6" },
+  { id:6, name:"S'Amarador",               description:"Great Menorcan Lobster.",                price:2, type:"Restaurant", subtype:"Seafood", lastVisited:"2024-09-15", lat:40.0018990,         lng:3.8359444,          directionsUrl:"https://maps.app.goo.gl/kaweAS8bsQnsd4UAA" },
+  { id:7, name:"Boater's Grill",            description:"Amazing Lobster, great price.",          price:1, type:"Restaurant", subtype:"Seafood", lastVisited:"2025-12-15", lat:25.675467,          lng:-80.161461,         directionsUrl:"https://maps.app.goo.gl/zEoVxFSRpAzHvoTR8" },
+  { id:8, name:"Luke's Lobster",            description:"You can taste this isn't fresh Lobster.", price:2, type:"Restaurant", subtype:"Seafood", lastVisited:"2023-12-15", lat:40.7594852,        lng:-73.9799833,        directionsUrl:"https://maps.app.goo.gl/XjVQTa5LyJc5PXoH6" },
+  { id:9, name:"Cavalier South Beach Hotel",description:"Great Lobster Raviolis 🍝.",             price:1, type:"Restaurant", subtype:"Seafood", lastVisited:"2025-07-15", lat:25.7844410,         lng:-80.1300338,        directionsUrl:"https://maps.app.goo.gl/GLrGp6QUX14Ty7um9" },
+];
+
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let selectedId     = null;
+let isDark         = false;
+let searchQuery    = '';
+let activeTypes    = new Set(['Restaurant']);
+let activeSubtypes = new Set(['Seafood']);
+let currentPopup   = null;
+
+// ════════════════════════════════════
+// MAP INIT
+// ════════════════════════════════════
+const map = L.map('map', { center: [22, -20], zoom: 3, zoomControl: false });
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
+let tileLayer = L.tileLayer(TILE_LIGHT, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+
+// Location control
+const LocateControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const btn = L.DomUtil.create('button', 'locate-btn');
+    btn.title = 'My location';
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
+    L.DomEvent.on(btn, 'click', e => { L.DomEvent.stopPropagation(e); map.locate({ setView: true, maxZoom: 13 }); });
+    return btn;
+  }
+});
+new LocateControl().addTo(map);
+
+// ════════════════════════════════════
+// MARKERS
+// ════════════════════════════════════
+const leafletMarkers = {};
+
+function markerHtml(selected) {
+  const ring = selected
+    ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:3px solid #93c5fd;pointer-events:none;"></div>`
+    : '';
+  return `<div style="position:relative;width:36px;height:36px;">${ring}<div style="width:36px;height:36px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;border:2px solid #374151;box-shadow:0 2px 8px rgba(0,0,0,0.35);transform:${selected?'scale(1.12)':'scale(1)'};transition:transform 0.2s;">🦞</div></div>`;
+}
+
+function makeIcon(selected) {
+  return L.divIcon({ className: '', html: markerHtml(selected), iconSize: [36, 36], iconAnchor: [18, 18] });
+}
+
+function buildMarkers() {
+  Object.values(leafletMarkers).forEach(m => m.remove());
+  Object.keys(leafletMarkers).forEach(k => delete leafletMarkers[k]);
+  getFiltered().forEach(loc => {
+    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc.id === selectedId) }).addTo(map);
+    m.on('click', e => { L.DomEvent.stopPropagation(e); handleSelect(loc.id, true); });
+    leafletMarkers[loc.id] = m;
+  });
+}
+
+function updateMarkerIcons() {
+  Object.entries(leafletMarkers).forEach(([mid, m]) => m.setIcon(makeIcon(parseInt(mid) === selectedId)));
+}
+
+// ════════════════════════════════════
+// POPUP
+// ════════════════════════════════════
+function buildPopupHtml(loc) {
+  return `
+  <div class="popup-card">
+    <button class="popup-close-btn" onclick="closePopup()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="popup-header">
+      <div class="popup-icon-box">🦞</div>
+      <div class="popup-header-info">
+        <div class="popup-name-row">
+          <span class="popup-name">${escHtml(loc.name)}</span>
+          <span class="popup-price price-${loc.price}">${priceStr(loc.price)}</span>
+        </div>
+        <div class="popup-badge"><span>🦞</span><span>${escHtml(loc.subtype)}</span></div>
+      </div>
+    </div>
+    <p class="popup-desc">${escHtml(loc.description)}</p>
+    <hr class="popup-divider">
+    <div class="popup-footer">
+      <span class="popup-time">${timeAgo(loc.lastVisited)}</span>
+      <a class="popup-dir" href="${loc.directionsUrl}" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Directions
+      </a>
+    </div>
+  </div>`;
+}
+
+function openPopup(loc) {
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  currentPopup = L.popup({
+    className: 'spot-popup',
+    closeButton: false,
+    autoClose: false,
+    closeOnClick: false,
+    closeOnEscapeKey: true,
+    maxWidth: 340,
+    offset: [0, -20],
+  })
+  .setLatLng([loc.lat, loc.lng])
+  .setContent(buildPopupHtml(loc))
+  .openOn(map);
+}
+
+function closePopup() {
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  selectedId = null;
+  updateMarkerIcons();
+  renderList();
+  const pts = worldBounds(getFiltered());
+  if (pts) map.fitBounds(pts, { padding: [60, 60], maxZoom: 12 });
+}
+window.closePopup = closePopup; // expose for inline onclick
+
+// ════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════
+function priceStr(p) { return '$'.repeat(p); }
+
+function timeAgo(dateStr) {
+  const d = new Date(dateStr), now = new Date();
+  const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (months <= 0) return 'this month';
+  if (months === 1) return '1 month ago';
+  return `${months} months ago`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getFiltered() {
+  return LOCATIONS.filter(loc => {
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q || loc.name.toLowerCase().includes(q) || loc.description.toLowerCase().includes(q);
+    const matchType    = activeTypes.size === 0    || activeTypes.has(loc.type);
+    const matchSubtype = activeSubtypes.size === 0 || activeSubtypes.has(loc.subtype);
+    return matchSearch && matchType && matchSubtype;
+  });
+}
+
+function worldBounds(locs) {
+  return locs.length ? locs.map(l => [l.lat, l.lng]) : null;
+}
+
+// ════════════════════════════════════
+// RENDER LIST
+// ════════════════════════════════════
+function renderList() {
+  const filtered  = getFiltered();
+  const displayed = selectedId ? filtered.filter(l => l.id === selectedId) : filtered;
+  const n = displayed.length;
+
+  document.getElementById('spotsCount').textContent = `${n} ${n === 1 ? 'spot' : 'spots'}`;
+
+  document.getElementById('spotsList').innerHTML = displayed.map(loc => `
+    <div class="spot-card${selectedId === loc.id ? ' selected' : ''}" data-id="${loc.id}">
+      <div class="card-top">
+        <span class="card-icon">🦞</span>
+        <div class="card-body">
+          <div class="card-name-row">
+            <span class="card-name">${escHtml(loc.name)}</span>
+            <span class="card-price price-${loc.price}">${priceStr(loc.price)}</span>
+          </div>
+          <div class="card-desc">${escHtml(loc.description)}</div>
+          <div class="card-badge"><span>🦞</span><span>${escHtml(loc.subtype)}</span></div>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <span class="card-time">${timeAgo(loc.lastVisited)}</span>
+        <a class="directions-link" href="${loc.directionsUrl}" target="_blank" rel="noopener" data-directions>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <span class="dir-full">Directions</span><span class="dir-short">Dir</span>
+        </a>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('spotsList').querySelectorAll('.spot-card').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-directions]')) return;
+      handleSelect(parseInt(card.dataset.id), false);
+    });
+  });
+}
+
+// ════════════════════════════════════
+// SELECT / DESELECT
+// ════════════════════════════════════
+function handleSelect(id, fromMarker) {
+  if (selectedId === id && currentPopup) {
+    closePopup();
+    return;
+  }
+  selectedId = id;
+  const loc = LOCATIONS.find(l => l.id === id);
+  if (!loc) return;
+
+  map.flyTo([loc.lat, loc.lng], 14, { duration: 1.1 });
+  updateMarkerIcons();
+  renderList();
+  openPopup(loc);
+
+  // Close mobile sidebar
+  closeMobileSidebar();
+}
+
+// Click map background → close popup & deselect
+map.on('click', () => {
+  if (currentPopup || selectedId !== null) closePopup();
+});
+
+// ════════════════════════════════════
+// DARK MODE
+// ════════════════════════════════════
+function applyTheme(dark) {
+  isDark = dark;
+  document.body.classList.toggle('dark', dark);
+  // desktop icons
+  document.getElementById('moonIcon').style.display = dark ? 'none' : '';
+  document.getElementById('sunIcon').style.display  = dark ? ''     : 'none';
+  // mobile icons
+  document.getElementById('mobileMoonIcon').style.display = dark ? 'none' : '';
+  document.getElementById('mobileSunIcon').style.display  = dark ? ''     : 'none';
+  tileLayer.setUrl(dark ? TILE_DARK : TILE_LIGHT);
+  // re-render popup in new theme
+  if (currentPopup && selectedId) {
+    const loc = LOCATIONS.find(l => l.id === selectedId);
+    if (loc) { currentPopup.setContent(buildPopupHtml(loc)); }
+  }
+}
+
+document.getElementById('themeBtn').addEventListener('click', () => applyTheme(!isDark));
+document.getElementById('mobileThemeBtn').addEventListener('click', () => applyTheme(!isDark));
+
+// ════════════════════════════════════
+// REFRESH
+// ════════════════════════════════════
+function doRefresh() {
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  selectedId  = null;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  activeTypes    = new Set(['Restaurant']);
+  activeSubtypes = new Set(['Seafood']);
+  document.querySelectorAll('.pill').forEach(p => p.classList.add('active'));
+  updatePillCounts();
+  buildMarkers();
+  renderList();
+  map.flyTo([22, -20], 3, { duration: 1 });
+}
+
+['refreshIcon','mobileRefreshIcon'].forEach(id => {
+  const icon = document.getElementById(id);
+  if (icon) icon.parentElement.addEventListener('click', () => {
+    icon.classList.add('spinning');
+    icon.addEventListener('animationend', () => icon.classList.remove('spinning'), { once: true });
+    doRefresh();
+  });
+});
+
+// ════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  selectedId = null;
+  buildMarkers();
+  renderList();
+});
+
+// ════════════════════════════════════
+// FILTER PILLS
+// ════════════════════════════════════
+document.getElementById('filtersBar').addEventListener('click', e => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  const filterType = pill.dataset.filter;
+  const value      = pill.dataset.value;
+  const setRef     = filterType === 'type' ? activeTypes : activeSubtypes;
+  setRef.has(value) ? setRef.delete(value) : setRef.add(value);
+  pill.classList.toggle('active', setRef.has(value));
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  selectedId = null;
+  updatePillCounts();
+  buildMarkers();
+  renderList();
+});
+
+function updatePillCounts() {
+  document.getElementById('countRestaurant').textContent = `(${LOCATIONS.filter(l => l.type === 'Restaurant').length})`;
+  document.getElementById('countSeafood').textContent    = `(${LOCATIONS.filter(l => l.subtype === 'Seafood').length})`;
+}
+
+// ════════════════════════════════════
+// MOBILE SIDEBAR TOGGLE
+// ════════════════════════════════════
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarBackdrop').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('open');
+}
+
+document.getElementById('hamburgerBtn').addEventListener('click', () => {
+  const isOpen = document.getElementById('sidebar').classList.contains('open');
+  isOpen ? closeMobileSidebar() : openMobileSidebar();
+});
+
+document.getElementById('sidebarBackdrop').addEventListener('click', closeMobileSidebar);
+
+// ════════════════════════════════════
+// ABOUT MODAL
+// ════════════════════════════════════
+function openAbout()  { document.getElementById('aboutOverlay').classList.add('open'); }
+function closeAbout() { document.getElementById('aboutOverlay').classList.remove('open'); }
+
+document.getElementById('aboutBtn').addEventListener('click', openAbout);
+document.getElementById('modalCloseX').addEventListener('click', closeAbout);
+document.getElementById('modalCloseBtn').addEventListener('click', closeAbout);
+document.getElementById('aboutOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('aboutOverlay')) closeAbout();
+});
+
+// ════════════════════════════════════
+// BOOT
+// ════════════════════════════════════
+buildMarkers();
+renderList();
+</script>
+</body>
+</html>
