@@ -506,6 +506,163 @@
         min-width: 320px;
       }
     }
+
+    /* ═══════════════════════════════════
+       AI SEARCH BAR (overlaid on map)
+       ═══════════════════════════════════ */
+    #aiSearchBar {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: white;
+      border-radius: 999px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 6px rgba(0,0,0,0.10);
+      padding: 6px 6px 6px 20px;
+      width: min(520px, calc(100vw - 100px));
+      transition: box-shadow 0.2s;
+    }
+    .dark #aiSearchBar {
+      background: #18191d;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 1px 6px rgba(0,0,0,0.3);
+    }
+    #aiSearchInput {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 15px;
+      color: var(--text);
+      min-width: 0;
+      font-family: inherit;
+    }
+    #aiSearchInput::placeholder { color: var(--text-muted); }
+    #aiSearchBtn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: #DE6E38;
+      color: white;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #aiSearchBtn:hover { background: #c9592a; }
+    #aiSearchBtn:active { transform: scale(0.93); }
+
+    /* Mobile adjustments for AI search bar */
+    @media (max-width: 639px) {
+      #aiSearchBar {
+        bottom: 16px;
+        width: calc(100vw - 80px);
+        padding: 5px 5px 5px 16px;
+      }
+      #aiSearchInput { font-size: 14px; }
+      #aiSearchBtn { width: 36px; height: 36px; }
+    }
+
+    /* ═══════════════════════════════════
+       PRO / WAITLIST MODALS
+       ═══════════════════════════════════ */
+    .ai-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 1100;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .ai-overlay.open { display: flex; }
+
+    .ai-modal {
+      background: var(--modal-bg);
+      border-radius: 24px;
+      padding: 32px 28px 28px;
+      max-width: 380px; width: 100%;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.22);
+      position: relative;
+      text-align: center;
+      animation: modalPop 0.22s ease;
+    }
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .ai-modal-emoji { font-size: 40px; margin-bottom: 14px; }
+    .ai-modal h3 {
+      font-size: 20px; font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+    .ai-modal p {
+      font-size: 14px; color: var(--text-muted);
+      line-height: 1.6; margin-bottom: 22px;
+    }
+    .ai-modal-close {
+      position: absolute; top: 16px; right: 16px;
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .ai-modal-close:hover { background: var(--hover-bg); color: var(--text); }
+
+    .btn-pro {
+      width: 100%; padding: 14px;
+      border: none; border-radius: 14px;
+      background: #DE6E38; color: white;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+      font-family: inherit;
+    }
+    .btn-pro:hover { background: #c9592a; }
+
+    /* Waitlist modal */
+    .waitlist-input {
+      width: 100%; padding: 13px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--search-bg);
+      color: var(--text);
+      font-size: 15px; font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 12px;
+      text-align: left;
+    }
+    .waitlist-input:focus { border-color: #DE6E38; }
+    .waitlist-input::placeholder { color: var(--text-muted); }
+
+    .btn-waitlist {
+      width: 100%; padding: 14px;
+      border: none; border-radius: 14px;
+      background: #111827; color: white;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s, opacity 0.15s;
+      font-family: inherit;
+    }
+    .dark .btn-waitlist { background: #f9fafb; color: #111827; }
+    .btn-waitlist:hover { opacity: 0.88; }
+
+    .sent-msg {
+      display: none;
+      font-size: 15px; font-weight: 600;
+      color: #16a34a; margin-top: 10px;
+    }
+    .sent-msg.visible { display: block; }
+
+    @media (max-width: 639px) {
+      .ai-modal { padding: 28px 20px 22px; border-radius: 20px; }
+      .ai-modal h3 { font-size: 18px; }
+    }
   </style>
 </head>
 <body>
@@ -584,6 +741,42 @@
       </svg>
       About
     </button>
+
+    <!-- AI Search Bar -->
+    <div id="aiSearchBar">
+      <input id="aiSearchInput" type="text" placeholder="Where is the best lobster in Miami?" autocomplete="off" />
+      <button id="aiSearchBtn" title="Search with AI">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PRO MODAL ═══════════════ -->
+<div id="proOverlay" class="ai-overlay">
+  <div class="ai-modal">
+    <button class="ai-modal-close" id="proModalClose">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="ai-modal-emoji">🦞✨</div>
+    <h3>AI Version only available for Pro Users</h3>
+    <p>Unlock AI-powered lobster search to find the best spots worldwide with natural language.</p>
+    <button class="btn-pro" id="upgradeProBtn">Upgrade to Pro</button>
+  </div>
+</div>
+
+<!-- ═══════════════ WAITLIST MODAL ═══════════════ -->
+<div id="waitlistOverlay" class="ai-overlay">
+  <div class="ai-modal">
+    <button class="ai-modal-close" id="waitlistModalClose">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="ai-modal-emoji">🙌</div>
+    <h3>Right now we are not accepting more Pro users</h3>
+    <p>Join the wait list and we'll let you know as soon as a spot opens up.</p>
+    <input class="waitlist-input" id="waitlistEmail" type="email" placeholder="your@email.com" />
+    <button class="btn-waitlist" id="waitlistSendBtn">Send</button>
+    <div class="sent-msg" id="sentMsg">✅ Sent!</div>
   </div>
 </div>
 
@@ -926,6 +1119,63 @@ document.getElementById('modalCloseBtn').addEventListener('click', closeAbout);
 document.getElementById('aboutOverlay').addEventListener('click', e => {
   if (e.target === document.getElementById('aboutOverlay')) closeAbout();
 });
+
+// ════════════════════════════════════
+// AI SEARCH BAR + PRO / WAITLIST MODALS
+// ════════════════════════════════════
+(function () {
+  const aiInput       = document.getElementById('aiSearchInput');
+  const aiBtn         = document.getElementById('aiSearchBtn');
+  const proOverlay    = document.getElementById('proOverlay');
+  const proClose      = document.getElementById('proModalClose');
+  const upgradeBtn    = document.getElementById('upgradeProBtn');
+  const waitlistOver  = document.getElementById('waitlistOverlay');
+  const waitlistClose = document.getElementById('waitlistModalClose');
+  const waitlistEmail = document.getElementById('waitlistEmail');
+  const sendBtn       = document.getElementById('waitlistSendBtn');
+  const sentMsg       = document.getElementById('sentMsg');
+
+  function openPro() { proOverlay.classList.add('open'); }
+  function closePro() { proOverlay.classList.remove('open'); }
+  function openWaitlist() { waitlistOver.classList.add('open'); }
+  function closeWaitlist() {
+    waitlistOver.classList.remove('open');
+    // reset state
+    waitlistEmail.value = '';
+    sentMsg.classList.remove('visible');
+    sendBtn.style.display = '';
+  }
+
+  // Trigger: click search button → clear input → open Pro modal
+  aiBtn.addEventListener('click', () => {
+    aiInput.value = '';
+    openPro();
+  });
+
+  // Also trigger on Enter key
+  aiInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { aiInput.value = ''; openPro(); }
+  });
+
+  // Pro modal close
+  proClose.addEventListener('click', closePro);
+  proOverlay.addEventListener('click', e => { if (e.target === proOverlay) closePro(); });
+
+  // Upgrade → open waitlist
+  upgradeBtn.addEventListener('click', () => { closePro(); openWaitlist(); });
+
+  // Waitlist modal close
+  waitlistClose.addEventListener('click', closeWaitlist);
+  waitlistOver.addEventListener('click', e => { if (e.target === waitlistOver) closeWaitlist(); });
+
+  // Send button
+  sendBtn.addEventListener('click', () => {
+    sentMsg.classList.add('visible');
+    sendBtn.style.display = 'none';
+    // auto-close after 1.8s
+    setTimeout(closeWaitlist, 1800);
+  });
+})();
 
 // ════════════════════════════════════
 // BOOT
