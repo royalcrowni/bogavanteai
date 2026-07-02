@@ -46,6 +46,9 @@
     <img src="logo.svg" class="mobile-logo-img" alt="Bogavante.ai" />
   </div>
   <div class="mobile-nav-right">
+    <button class="icon-btn" id="mobileRankBtn" title="Leaderboard">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </button>
     <button class="icon-btn" id="mobileThemeBtn" title="Toggle dark mode">
       <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -76,6 +79,9 @@
           <img src="logo.svg" class="sidebar-logo-img" alt="Bogavante.ai" />
         </div>
         <div class="header-btns">
+          <button class="icon-btn" id="rankBtn" title="Leaderboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          </button>
           <button class="icon-btn" id="refreshBtn" title="Refresh">
             <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -165,7 +171,11 @@
       <h3>Sign in to Bogavante</h3>
       <p>No password needed — we'll email you a magic link.</p>
       <input class="waitlist-input" id="authEmail" type="email" placeholder="your@email.com" autocomplete="email" />
-      <button class="btn-pro" id="authSendLinkBtn">Send magic link</button>
+      <label class="terms-row">
+        <input type="checkbox" id="termsCheck" />
+        <span>I have read and agree to the <button type="button" class="terms-link" id="termsLink">Terms of Service &amp; Privacy Policy</button></span>
+      </label>
+      <button class="btn-pro" id="authSendLinkBtn" disabled>Send magic link</button>
     </div>
 
     <!-- Step 2: link sent -->
@@ -173,6 +183,7 @@
       <div class="ai-modal-emoji">📬</div>
       <h3>Check your inbox</h3>
       <p>We sent a magic link to <strong id="authEmailEcho"></strong>.<br>Click it and you'll come right back here, signed in.</p>
+      <p class="spam-note">🕵️ Can't see it? Check your <strong>spam / junk folder</strong> — magic links love to hide in there. If you find it, mark it as "Not spam" so the next one lands in your inbox.</p>
       <button class="link-btn" id="authBackBtn">Use another email</button>
     </div>
 
@@ -215,8 +226,9 @@
       </div>
       <div>
         <label class="form-label">Country</label>
-        <input class="waitlist-input" id="spotCountry" type="text" maxlength="40" list="countryList" placeholder="Spain" />
-        <datalist id="countryList"></datalist>
+        <select class="waitlist-input" id="spotCountry">
+          <option value="" disabled selected>Select a country…</option>
+        </select>
       </div>
     </div>
 
@@ -225,9 +237,75 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
       <span id="pickLocationLabel">Pick on the map</span>
     </button>
+    <div class="coords-row">
+      <span class="coords-or">or paste coordinates (like Google Maps)</span>
+      <input class="waitlist-input" id="spotCoords" type="text" placeholder="40.45151809, -3.68743943" autocomplete="off" />
+    </div>
 
     <button class="btn-pro" id="publishSpotBtn">Publish 🦞</button>
     <div class="auth-error" id="addSpotError"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ LEADERBOARD MODAL ═══════════════ -->
+<div id="rankOverlay" class="ai-overlay">
+  <div class="ai-modal rank-modal">
+    <button class="ai-modal-close" id="rankClose">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="ai-modal-emoji">🏆</div>
+    <h3>Lobster Leaderboard</h3>
+
+    <div class="rank-section-title">🦞 Top spotters — spots added</div>
+    <div class="rank-list" id="rankSpotters"></div>
+
+    <div class="rank-section-title">⭐ Top raters — spots rated</div>
+    <div class="rank-list" id="rankRaters"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ TERMS & PRIVACY MODAL ═══════════════ -->
+<div id="termsOverlay" class="ai-overlay">
+  <div class="ai-modal terms-modal">
+    <button class="ai-modal-close" id="termsClose">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>Terms of Service &amp; Privacy Policy</h3>
+    <p class="terms-updated">Last updated: July 2, 2026</p>
+    <div class="terms-body">
+      <h4>1. Who we are and what you're agreeing to</h4>
+      <p>Bogavante.ai ("Bogavante", "we", "us" or "our") is a community-curated guide to lobster restaurants and seafood spots around the world, operated by the Bogavante.ai team. By creating an account, signing in, submitting content, or otherwise using the service, you confirm that you have read, understood, and agree to be bound by these Terms of Service and this Privacy Policy (together, the "Terms"). If you do not agree with any part of the Terms, please do not use the service.</p>
+
+      <h4>2. Your account</h4>
+      <p>To contribute to Bogavante you must sign in with a valid email address using our passwordless magic-link system. You agree to provide accurate information, to keep your email account secure, and to be responsible for all activity that happens under your account. Usernames are public, unique, and displayed alongside the content you contribute. We reserve the right to reclaim, rename, or disable usernames that impersonate others, infringe trademarks, or are offensive, at our sole discretion.</p>
+
+      <h4>3. The email address you give us</h4>
+      <p>When you sign in, we collect and store your email address. By accepting these Terms you expressly consent to Bogavante collecting, storing, and processing your email address for the following purposes, to the fullest extent permitted by applicable law: (a) authenticating you and operating your account; (b) sending you transactional and service messages (such as magic links, security notices, and changes to these Terms); (c) sending you product news, feature announcements, community highlights, newsletters, surveys, and promotional or marketing communications from Bogavante or carefully selected partners; (d) analytics, service improvement, personalization, and fraud or abuse prevention; and (e) any other purpose that we reasonably consider compatible with running and growing the service, provided it is lawful. You can opt out of non-essential communications at any time by using the unsubscribe link included in those emails or by contacting us, and opting out will not affect your ability to use the service.</p>
+
+      <h4>4. How we handle your data</h4>
+      <p>We store your data with trusted infrastructure providers (including Supabase and our hosting providers), who process it on our behalf under their own security and privacy commitments. We do not sell your email address to data brokers. We may share your data with service providers that help us operate (for example, email delivery and analytics providers), with authorities when the law requires it, or as part of a merger, acquisition, or sale of assets — in which case these Terms will continue to protect your data or you will be notified of material changes. We retain your data for as long as your account exists and for a reasonable period afterwards for legal, security, and backup purposes. Depending on where you live, you may have rights to access, correct, export, or delete your personal data; to exercise them, contact us and we will respond within the timeframes required by applicable law.</p>
+
+      <h4>5. Content you contribute</h4>
+      <p>Spots, reviews, ratings, and any other material you submit ("Content") remain yours, but by submitting Content you grant Bogavante a worldwide, non-exclusive, royalty-free, sublicensable, and transferable license to host, store, reproduce, adapt, publish, translate, distribute, publicly display, and promote that Content in connection with the service, in any media now known or later developed. This license survives account deletion for Content that has been shared with or relied upon by the community (for example, spots that appear on the shared map). You represent that your Content is truthful to the best of your knowledge, that you have the right to share it, and that it does not infringe anyone else's rights.</p>
+
+      <h4>6. Community rules</h4>
+      <p>Be a good sailor: no spam, no fake spots, no harassment, no impersonation, no scraping or automated bulk access, no attempts to break, overload, or reverse-engineer the service, and no unlawful content of any kind. Submission limits (such as daily spot caps) exist to protect the community and may change at any time. We may edit, moderate, or remove any Content, and suspend or terminate any account, at any time and for any reason, with or without notice, particularly where we believe these Terms have been breached.</p>
+
+      <h4>7. Our content and reviews</h4>
+      <p>Reviews on Bogavante are personal opinions of their authors, written for fun. They are not professional advice, and neither Bogavante nor its contributors accept liability for decisions you make based on them — including, without limitation, disappointing lobster. Restaurant names and trademarks belong to their respective owners; their appearance on Bogavante does not imply any affiliation or endorsement.</p>
+
+      <h4>8. Disclaimers and limitation of liability</h4>
+      <p>The service is provided "as is" and "as available", without warranties of any kind, express or implied, including fitness for a particular purpose, accuracy, or availability. To the maximum extent permitted by law, Bogavante and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, profits, or goodwill, arising from your use of (or inability to use) the service. Where liability cannot be excluded, it is limited to the greatest extent permitted by applicable law.</p>
+
+      <h4>9. Changes to the service and these Terms</h4>
+      <p>We may modify, suspend, or discontinue the service (or any part of it) at any time. We may also update these Terms from time to time; when we make material changes we will take reasonable steps to notify you, for example by email or an in-app notice. Continuing to use the service after changes take effect means you accept the updated Terms.</p>
+
+      <h4>10. General</h4>
+      <p>If any provision of these Terms is found unenforceable, the remaining provisions stay in full force. Our failure to enforce a right is not a waiver of it. You may not assign your rights under these Terms; we may assign ours in connection with a business transfer. These Terms are governed by the laws applicable at our place of establishment, without prejudice to any mandatory consumer protections that apply where you live.</p>
+
+      <p class="terms-footer">Questions about these Terms? Reach out through the links in the About section. Now go eat some lobster. 🦞</p>
+    </div>
+    <button class="btn-pro" id="termsAgreeBtn">I agree 🦞</button>
   </div>
 </div>
 

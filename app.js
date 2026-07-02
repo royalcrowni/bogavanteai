@@ -34,6 +34,8 @@ const SEED_SPOTS = [
 // ════════════════════════════════════
 let SPOTS = [];                 // active dataset (Supabase or seed)
 let RATINGS = {};               // spotId -> { sum, count, mine }
+let RATING_ROWS = [];           // raw ratings rows (for the leaderboard)
+let PROFILE_NAMES = {};         // userId -> username (for the leaderboard)
 let selectedId    = null;
 let isDark        = localStorage.getItem('boga-theme') === 'dark';
 let searchQuery   = '';
@@ -125,6 +127,35 @@ function avatarFor(username) {
   return AVATARS[h % AVATARS.length];
 }
 
+// @ignacio gets the golden treatment; everyone else stays regular
+const GOLD_USER = 'ignacio';
+function isGold(username) { return username === GOLD_USER; }
+function userNameHtml(username) {
+  const name = escHtml('@' + username);
+  return isGold(username) ? `<span class="gold-text">${name}</span>` : name;
+}
+function authorBadgeHtml(username) {
+  if (!username) return '';
+  return `<span class="author-badge${isGold(username) ? ' gold' : ''}">${avatarFor(username)} ${userNameHtml(username)}</span>`;
+}
+
+// Country list for the add-spot dropdown (no typos allowed!)
+const COUNTRIES = [
+  'Albania','Algeria','Andorra','Angola','Argentina','Armenia','Australia','Austria','Azerbaijan',
+  'Bahamas','Bahrain','Bangladesh','Barbados','Belgium','Belize','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Bulgaria',
+  'Cambodia','Cameroon','Canada','Cape Verde','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czechia',
+  'Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','Estonia','Ethiopia',
+  'Fiji','Finland','France','Georgia','Germany','Ghana','Greece','Greenland','Guatemala',
+  'Haiti','Honduras','Hong Kong','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+  'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Laos','Latvia','Lebanon','Libya','Liechtenstein','Lithuania','Luxembourg',
+  'Madagascar','Malaysia','Maldives','Malta','Mauritius','Mexico','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar',
+  'Namibia','Nepal','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway','Oman',
+  'Pakistan','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Puerto Rico','Qatar',
+  'Romania','Russia','Rwanda','San Marino','Saudi Arabia','Senegal','Serbia','Seychelles','Singapore','Slovakia','Slovenia','Somalia','South Africa','South Korea','Spain','Sri Lanka','Sweden','Switzerland','Syria',
+  'Taiwan','Tanzania','Thailand','Trinidad and Tobago','Tunisia','Turkey','Uganda','Ukraine','United Arab Emirates','United Kingdom','Uruguay','USA','Uzbekistan',
+  'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe',
+];
+
 function ratingOf(id) {
   const r = RATINGS[id];
   if (!r || !r.count) return { avg: 0, count: 0, mine: null };
@@ -192,7 +223,7 @@ async function loadData() {
     if (error) throw error;
     SPOTS = data.map(mapRow);
     usingFallback = false;
-    await loadRatings();
+    await Promise.all([loadRatings(), loadProfileNames()]);
   } catch (e) {
     console.warn('Supabase unavailable, using seed data:', e.message || e);
     SPOTS = SEED_SPOTS;
@@ -205,6 +236,7 @@ async function loadRatings() {
   try {
     const { data, error } = await sb.from('ratings').select('spot_id, user_id, stars');
     if (error) throw error;
+    RATING_ROWS = data;
     RATINGS = {};
     const uid = session?.user?.id;
     data.forEach(r => {
@@ -216,6 +248,19 @@ async function loadRatings() {
     });
   } catch (e) {
     console.warn('Could not load ratings:', e.message || e);
+  }
+}
+
+// username lookup for the leaderboard (profiles are public)
+async function loadProfileNames() {
+  if (!sb || usingFallback) return;
+  try {
+    const { data, error } = await sb.from('profiles').select('id, username');
+    if (error) throw error;
+    PROFILE_NAMES = {};
+    data.forEach(p => { PROFILE_NAMES[p.id] = p.username; });
+  } catch (e) {
+    console.warn('Could not load profiles:', e.message || e);
   }
 }
 
@@ -270,8 +315,7 @@ function starsHtml(loc) {
 }
 
 function buildPopupHtml(loc) {
-  const author = loc.authorName
-    ? `<span class="author-badge">${avatarFor(loc.authorName)} ${escHtml('@' + loc.authorName)}</span>` : '';
+  const author = authorBadgeHtml(loc.authorName);
   return `
   <div class="popup-card">
     <button class="popup-close-btn" onclick="closePopup()">
@@ -401,8 +445,6 @@ function renderFilters() {
     });
   });
 
-  // country datalist for the add-spot form
-  $('countryList').innerHTML = countries.map(c => `<option value="${escHtml(c)}">`).join('');
 }
 
 function onFiltersChanged() {
@@ -434,8 +476,7 @@ function renderList() {
     const { avg, count } = ratingOf(loc.id);
     const rating = count
       ? `<span class="rating-badge">🦞 ${avg.toFixed(1)} <span class="rating-count">(${count})</span></span>` : '';
-    const author = loc.authorName
-      ? `<span class="author-badge">${avatarFor(loc.authorName)} ${escHtml('@' + loc.authorName)}</span>` : '';
+    const author = authorBadgeHtml(loc.authorName);
     return `
     <div class="spot-card${selectedId === loc.id ? ' selected' : ''}" data-id="${escHtml(loc.id)}">
       <div class="card-top">
@@ -608,10 +649,24 @@ $('authModalClose').addEventListener('click', closeAuth);
 $('authOverlay').addEventListener('click', e => { if (e.target === $('authOverlay')) closeAuth(); });
 $('authBackBtn').addEventListener('click', () => showAuthStep('authStepEmail'));
 
+// ── Terms & Privacy gate ──
+$('termsCheck').addEventListener('change', e => {
+  $('authSendLinkBtn').disabled = !e.target.checked;
+});
+$('termsLink').addEventListener('click', () => $('termsOverlay').classList.add('open'));
+$('termsClose').addEventListener('click', () => $('termsOverlay').classList.remove('open'));
+$('termsOverlay').addEventListener('click', e => { if (e.target === $('termsOverlay')) $('termsOverlay').classList.remove('open'); });
+$('termsAgreeBtn').addEventListener('click', () => {
+  $('termsCheck').checked = true;
+  $('authSendLinkBtn').disabled = false;
+  $('termsOverlay').classList.remove('open');
+});
+
 $('authSendLinkBtn').addEventListener('click', sendMagicLink);
 $('authEmail').addEventListener('keydown', e => { if (e.key === 'Enter') sendMagicLink(); });
 
 async function sendMagicLink() {
+  if (!$('termsCheck').checked) { authError('You must accept the Terms of Service & Privacy Policy first.'); return; }
   const email = $('authEmail').value.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { authError('Enter a valid email.'); return; }
   if (!sb) { authError('Something went wrong. Try again.'); return; }
@@ -688,13 +743,57 @@ function updateAuthUI() {
   $('userChip').style.display = logged ? 'flex' : 'none';
   if (logged) {
     $('userChipAvatar').textContent = avatarFor(profile.username);
-    $('userChipName').textContent = '@' + profile.username;
+    const nameEl = $('userChipName');
+    nameEl.innerHTML = userNameHtml(profile.username);
   }
 }
 
 // ════════════════════════════════════
+// LEADERBOARD
+// ════════════════════════════════════
+function rankRowsHtml(entries) {
+  if (!entries.length) return `<div class="rank-empty">Nobody here yet — be the first! 🦞</div>`;
+  const medals = ['🥇', '🥈', '🥉'];
+  return entries.map(([name, count], i) => `
+    <div class="rank-row">
+      <span class="rank-pos">${medals[i] || (i + 1) + '.'}</span>
+      <span class="rank-name">${avatarFor(name)} ${userNameHtml(name)}</span>
+      <span class="rank-score">${count}</span>
+    </div>`).join('');
+}
+
+function openRanking() {
+  closeMobileSidebar();
+
+  // Top spotters: spots added per username
+  const bySpots = {};
+  SPOTS.forEach(s => { if (s.authorName) bySpots[s.authorName] = (bySpots[s.authorName] || 0) + 1; });
+  const spotters = Object.entries(bySpots).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // Top raters: ratings given per username
+  const byRatings = {};
+  RATING_ROWS.forEach(r => {
+    const name = PROFILE_NAMES[r.user_id];
+    if (name) byRatings[name] = (byRatings[name] || 0) + 1;
+  });
+  const raters = Object.entries(byRatings).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  $('rankSpotters').innerHTML = rankRowsHtml(spotters);
+  $('rankRaters').innerHTML = rankRowsHtml(raters);
+  $('rankOverlay').classList.add('open');
+}
+
+$('rankBtn').addEventListener('click', openRanking);
+$('mobileRankBtn').addEventListener('click', openRanking);
+$('rankClose').addEventListener('click', () => $('rankOverlay').classList.remove('open'));
+$('rankOverlay').addEventListener('click', e => { if (e.target === $('rankOverlay')) $('rankOverlay').classList.remove('open'); });
+
+// ════════════════════════════════════
 // ADD SPOT
 // ════════════════════════════════════
+// Populate the country dropdown once
+$('spotCountry').innerHTML = '<option value="" disabled selected>Select a country…</option>'
+  + COUNTRIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
 function openAddSpot() {
   if (!session || !profile) { showToast('Sign in first to add spots 🦞'); openAuth(); return; }
   $('addSpotOverlay').classList.add('open');
@@ -703,12 +802,40 @@ function openAddSpot() {
 function closeAddSpot() { $('addSpotOverlay').classList.remove('open'); }
 
 function resetAddSpotForm() {
-  ['spotName', 'spotDesc', 'spotCountry'].forEach(id => $(id).value = '');
+  ['spotName', 'spotDesc', 'spotCoords'].forEach(id => $(id).value = '');
+  $('spotCountry').selectedIndex = 0;
   $('spotPrice').value = '2';
   pickedLatLng = null;
+  $('spotCoords').classList.remove('coords-ok');
   $('pickLocationBtn').classList.remove('picked');
   $('pickLocationLabel').textContent = 'Pick on the map';
 }
+
+function setPickedLocation(latlng) {
+  pickedLatLng = latlng;
+  $('pickLocationBtn').classList.add('picked');
+  $('pickLocationLabel').textContent = 'Location set ✓ (tap to change)';
+  $('spotCoords').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+  $('spotCoords').classList.add('coords-ok');
+}
+
+// Manual coordinates ("40.4515, -3.6874" — same format Google Maps copies)
+$('spotCoords').addEventListener('input', e => {
+  const m = e.target.value.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)$/);
+  if (!m) {
+    e.target.classList.remove('coords-ok');
+    return;
+  }
+  const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    e.target.classList.remove('coords-ok');
+    return;
+  }
+  pickedLatLng = L.latLng(lat, lng);
+  e.target.classList.add('coords-ok');
+  $('pickLocationBtn').classList.add('picked');
+  $('pickLocationLabel').textContent = 'Location set ✓ (tap to change)';
+});
 
 $('addSpotBtn').addEventListener('click', openAddSpot);
 $('addSpotClose').addEventListener('click', closeAddSpot);
@@ -738,14 +865,14 @@ function endPicking(confirmed) {
   $('pickBanner').style.display = 'none';
   $('map').classList.remove('picking');
   if (pickMarker) { pickMarker.remove(); pickMarker = null; }
-  if (!confirmed) pickedLatLng = null;
-  const btn = $('pickLocationBtn');
   if (confirmed && pickedLatLng) {
-    btn.classList.add('picked');
-    $('pickLocationLabel').textContent = 'Location set ✓ (tap to change)';
+    setPickedLocation(pickedLatLng);
   } else {
-    btn.classList.remove('picked');
+    pickedLatLng = null;
+    $('pickLocationBtn').classList.remove('picked');
     $('pickLocationLabel').textContent = 'Pick on the map';
+    $('spotCoords').value = '';
+    $('spotCoords').classList.remove('coords-ok');
   }
   $('addSpotOverlay').classList.add('open');
 }
@@ -761,12 +888,12 @@ $('publishSpotBtn').addEventListener('click', async () => {
 
   const name = $('spotName').value.trim();
   const description = $('spotDesc').value.trim();
-  const country = $('spotCountry').value.trim();
+  const country = $('spotCountry').value;
   const price = parseInt($('spotPrice').value);
 
   if (!name) { showErr('Give the spot a name.'); return; }
-  if (!country) { showErr('Which country is it in?'); return; }
-  if (!pickedLatLng) { showErr('Pick the location on the map.'); return; }
+  if (!country) { showErr('Select the country from the list.'); return; }
+  if (!pickedLatLng) { showErr('Pick the location on the map or paste its coordinates.'); return; }
   if (!sb || !session || !profile) { showErr('Something went wrong. Try again.'); return; }
 
   const btn = $('publishSpotBtn');
@@ -785,7 +912,7 @@ $('publishSpotBtn').addEventListener('click', async () => {
 
   if (error) {
     showErr((error.message || '').includes('RATE_LIMIT')
-      ? 'Easy, sailor! ⚓ You can only add one spot per hour.'
+      ? 'Easy, sailor! ⚓ You can add up to 3 spots per day.'
       : 'Something went wrong. Try again.');
     return;
   }

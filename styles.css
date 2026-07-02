@@ -320,6 +320,42 @@ body {
   border: 1px solid transparent;
   font-size: 11.5px; color: var(--brand); font-weight: 700;
 }
+
+/* ── Golden @ignacio ── */
+.author-badge.gold {
+  background: linear-gradient(135deg, rgba(255,215,0,0.16), rgba(212,175,55,0.06));
+  border: 1px solid rgba(212,175,55,0.55);
+  position: relative;
+  overflow: hidden;
+}
+.gold-text {
+  background: linear-gradient(90deg, #7a5800, #c9992e, #edc531, #c9992e, #7a5800);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  animation: goldShimmer 2.4s linear infinite;
+}
+.dark .gold-text {
+  background-image: linear-gradient(90deg, #c9a227, #ffd700, #fffbe6, #ffd700, #c9a227);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@keyframes goldShimmer { to { background-position: 200% center; } }
+.author-badge.gold::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -80%;
+  width: 50%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: goldSweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes goldSweep {
+  0%, 55% { left: -80%; }
+  85%, 100% { left: 130%; }
+}
 .rating-badge {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 12px; font-weight: 700; color: var(--brand);
@@ -702,6 +738,110 @@ body {
   line-height: 1.4;
 }
 .auth-error.visible { display: block; }
+
+/* Terms checkbox row */
+.terms-row {
+  display: flex; align-items: flex-start; gap: 9px;
+  text-align: left;
+  font-size: 13px; color: var(--text-muted);
+  line-height: 1.45;
+  margin: 2px 2px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.terms-row input[type="checkbox"] {
+  margin-top: 2px;
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.terms-link {
+  border: none; background: transparent; padding: 0;
+  color: var(--brand); font-weight: 700;
+  font-size: 13px; font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.terms-link:hover { color: var(--brand-dark); }
+
+.spam-note {
+  background: var(--brand-soft);
+  border: 1px dashed rgba(222,110,56,0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+/* Terms modal */
+.terms-modal {
+  max-width: 560px;
+  text-align: left;
+}
+.terms-modal h3 { text-align: center; }
+.terms-updated {
+  text-align: center;
+  font-size: 12px !important;
+  margin-bottom: 14px !important;
+}
+.terms-body {
+  max-height: 48vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--search-bg);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.terms-body h4 {
+  color: var(--text);
+  font-size: 13.5px;
+  margin: 14px 0 5px;
+}
+.terms-body h4:first-child { margin-top: 0; }
+.terms-body p { margin-bottom: 8px; }
+.terms-body .terms-footer { margin: 14px 0 0; font-weight: 600; color: var(--text); }
+.terms-body::-webkit-scrollbar { width: 4px; }
+.terms-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Leaderboard modal */
+.rank-modal { max-width: 420px; }
+.rank-section-title {
+  text-align: left;
+  font-size: 12px; font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  margin: 14px 2px 8px;
+}
+.rank-list { display: flex; flex-direction: column; gap: 6px; }
+.rank-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--search-bg);
+  font-size: 14px; font-weight: 600;
+  color: var(--text);
+  text-align: left;
+}
+.rank-pos { width: 26px; flex-shrink: 0; font-weight: 800; color: var(--text-muted); }
+.rank-row .rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-score { color: var(--brand); font-weight: 800; flex-shrink: 0; }
+.rank-empty { font-size: 13px; color: var(--text-muted); padding: 6px 2px; text-align: left; }
+
+/* Coordinates input */
+.coords-row { margin-bottom: 14px; }
+.coords-or {
+  display: block;
+  font-size: 11.5px; color: var(--text-muted);
+  margin: 0 2px 6px;
+}
+#spotCoords { margin-bottom: 0; }
+#spotCoords.coords-ok { border-color: #16a34a; }
 
 /* Add spot form */
 .add-spot-modal { text-align: left; }
