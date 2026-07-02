@@ -36,6 +36,7 @@ let SPOTS = [];                 // active dataset (Supabase or seed)
 let RATINGS = {};               // spotId -> { sum, count, mine }
 let RATING_ROWS = [];           // raw ratings rows (for the leaderboard)
 let PROFILE_NAMES = {};         // userId -> username (for the leaderboard)
+let PROFILES = {};              // username -> { id, username, avatar, avatar_bg, bio }
 let selectedId    = null;
 let isDark        = localStorage.getItem('boga-theme') === 'dark';
 let searchQuery   = '';
@@ -109,22 +110,70 @@ function safeUrl(u, lat, lng) {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
-function timeAgo(dateStr) {
-  if (!dateStr) return 'Not visited yet';
-  const d = new Date(dateStr), now = new Date();
-  const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-  if (months <= 0) return 'this month';
-  if (months === 1) return '1 month ago';
-  if (months < 24) return `${months} months ago`;
-  return `${Math.floor(months / 12)} years ago`;
-}
-
-// Deterministic "random" avatar per username
+// Fallback avatar for users who haven't picked one yet
 const AVATARS = ['🦞','🦀','🦐','🦑','🐙','🐠','🐚','⚓️','🧜‍♂️','🌊','🐟','🛥️'];
 function avatarFor(username) {
   let h = 0;
   for (const c of String(username || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return AVATARS[h % AVATARS.length];
+}
+
+// ── Profile pictures: emoji or 2 initials on a colored disc ──
+const AVATAR_EMOJIS = ['🦐','🦞','🦀','🐡','🐟','🐋','🫍','🦑'];
+const AVATAR_COLORS = ['#C6C6C6','#96CDE2','#FFA66F','#7EDD9B','#F0E16D','#F06D6D'];
+
+function isInitialsAvatar(a) { return /^[A-ZÀ-Ü]{1,2}$/.test(a || ''); }
+function deriveInitials(name) {
+  return String(name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || 'AB';
+}
+function avatarDataFor(username) {
+  const p = PROFILES[username];
+  return {
+    avatar: p?.avatar || avatarFor(username),
+    bg: p?.avatar_bg || '#C6C6C6',
+  };
+}
+function avatarHtml(username, cls = 'avatar-sm') {
+  const { avatar, bg } = avatarDataFor(username);
+  const ini = isInitialsAvatar(avatar) ? ' initials' : '';
+  return `<span class="avatar-circle ${cls}${ini}" style="background:${escHtml(bg)}">${escHtml(avatar)}</span>`;
+}
+
+// Reusable emoji/initials + color picker (signup and profile edit)
+function createAvatarPicker(container, state) {
+  function render() {
+    const usingIni = isInitialsAvatar(state.avatar);
+    const tiles = AVATAR_EMOJIS.map(e =>
+      `<button type="button" class="picker-tile${state.avatar === e ? ' sel' : ''}" data-av="${e}" style="background:${state.bg}">${e}</button>`
+    ).join('')
+    + `<button type="button" class="picker-tile initials${usingIni ? ' sel' : ''}" data-av="__ini" style="background:${state.bg}">${escHtml(usingIni ? state.avatar : state.initials)}</button>`;
+    const colors = AVATAR_COLORS.map(c =>
+      `<button type="button" class="picker-color${state.bg === c ? ' sel' : ''}" data-c="${c}" style="background:${c}"></button>`
+    ).join('');
+    container.innerHTML = `
+      <div class="picker-grid">${tiles}</div>
+      <div class="picker-colors">${colors}</div>
+      <input class="waitlist-input picker-ini-input" maxlength="2" placeholder="AB"
+             style="display:${usingIni ? '' : 'none'}" value="${escHtml(usingIni ? state.avatar : state.initials)}" />`;
+
+    container.querySelectorAll('.picker-tile').forEach(t => t.addEventListener('click', () => {
+      state.avatar = t.dataset.av === '__ini' ? state.initials : t.dataset.av;
+      render();
+    }));
+    container.querySelectorAll('.picker-color').forEach(t => t.addEventListener('click', () => {
+      state.bg = t.dataset.c;
+      render();
+    }));
+    const ini = container.querySelector('.picker-ini-input');
+    ini.addEventListener('input', () => {
+      const v = ini.value.toUpperCase().replace(/[^A-ZÀ-Ü]/g, '').slice(0, 2);
+      ini.value = v;
+      if (v) { state.initials = v; state.avatar = v; }
+      const tile = container.querySelector('.picker-tile.initials');
+      if (tile) tile.textContent = v || state.initials;
+    });
+  }
+  render();
 }
 
 // @ignacio gets the golden treatment; everyone else stays regular
@@ -136,7 +185,8 @@ function userNameHtml(username) {
 }
 function authorBadgeHtml(username) {
   if (!username) return '';
-  return `<span class="author-badge${isGold(username) ? ' gold' : ''}">${avatarFor(username)} ${userNameHtml(username)}</span>`;
+  const safe = String(username).replace(/[^a-zA-Z0-9_]/g, '');
+  return `<button class="author-badge${isGold(username) ? ' gold' : ''}" onclick="event.stopPropagation(); openUserProfile('${safe}')" title="View profile">${avatarHtml(username, 'avatar-xs')} ${userNameHtml(username)}</button>`;
 }
 
 // Country list for the add-spot dropdown (no typos allowed!)
@@ -176,7 +226,6 @@ function getSorted(list) {
   switch (sortBy) {
     case 'price':  arr.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name)); break;
     case 'rating': arr.sort((a, b) => ratingOf(b.id).avg - ratingOf(a.id).avg || ratingOf(b.id).count - ratingOf(a.id).count); break;
-    case 'visit':  arr.sort((a, b) => (b.lastVisited || '').localeCompare(a.lastVisited || '')); break;
     default:       arr.sort((a, b) => a.name.localeCompare(b.name));
   }
   return arr;
@@ -251,14 +300,18 @@ async function loadRatings() {
   }
 }
 
-// username lookup for the leaderboard (profiles are public)
+// public profiles: usernames, avatars and bios
 async function loadProfileNames() {
   if (!sb || usingFallback) return;
   try {
-    const { data, error } = await sb.from('profiles').select('id, username');
+    const { data, error } = await sb.from('profiles').select('*');
     if (error) throw error;
     PROFILE_NAMES = {};
-    data.forEach(p => { PROFILE_NAMES[p.id] = p.username; });
+    PROFILES = {};
+    data.forEach(p => {
+      PROFILE_NAMES[p.id] = p.username;
+      PROFILES[p.username] = p;
+    });
   } catch (e) {
     console.warn('Could not load profiles:', e.message || e);
   }
@@ -338,7 +391,6 @@ function buildPopupHtml(loc) {
     ${starsHtml(loc)}
     <hr class="popup-divider">
     <div class="popup-footer">
-      <span class="popup-time">${timeAgo(loc.lastVisited)}</span>
       <div class="popup-actions">
         <button class="popup-share" onclick="shareSpot('${escHtml(loc.id)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
@@ -495,7 +547,6 @@ function renderList() {
         </div>
       </div>
       <div class="card-bottom">
-        <span class="card-time">${timeAgo(loc.lastVisited)}</span>
         <a class="directions-link" href="${escHtml(safeUrl(loc.directionsUrl, loc.lat, loc.lng))}" target="_blank" rel="noopener" data-directions>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           <span class="dir-full">Directions</span><span class="dir-short">Dir</span>
@@ -642,7 +693,7 @@ function closeAuth() { $('authOverlay').classList.remove('open'); authError('');
 
 $('authBtn').addEventListener('click', openAuth);
 $('mobileAuthBtn').addEventListener('click', () => {
-  if (session && profile) { showToast(`${avatarFor(profile.username)} @${profile.username}`); return; }
+  if (session && profile) { openUserProfile(profile.username); return; }
   openAuth();
 });
 $('authModalClose').addEventListener('click', closeAuth);
@@ -689,15 +740,17 @@ async function sendMagicLink() {
 // Called when a session appears (page load, or returning from the magic link)
 async function onSignedIn(isFreshLogin) {
   profile = await fetchProfile();
+  if (profile) PROFILES[profile.username] = profile;
   updateAuthUI();
   if (!profile) {
-    // First time here: pick a username
+    // First time here: pick a username + profile picture
     openAuth();
     showAuthStep('authStepUsername');
+    initSignupPicker();
     $('authUsername').focus();
   } else if (isFreshLogin) {
     closeAuth();
-    showToast(`Welcome back, @${profile.username}! ${avatarFor(profile.username)}`);
+    showToast(`Welcome back, @${profile.username}! ${avatarDataFor(profile.username).avatar}`);
   }
   await loadRatings();
   renderList(); refreshPopup();
@@ -705,9 +758,23 @@ async function onSignedIn(isFreshLogin) {
 
 async function fetchProfile() {
   if (!sb || !session) return null;
-  const { data } = await sb.from('profiles').select('id, username').eq('id', session.user.id).maybeSingle();
+  const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   return data || null;
 }
+
+// Signup avatar picker state
+const signupState = { avatar: '🦞', bg: '#FFA66F', initials: 'AB' };
+function initSignupPicker() {
+  signupState.initials = deriveInitials($('authUsername').value || '');
+  createAvatarPicker($('signupPicker'), signupState);
+}
+$('authUsername').addEventListener('input', e => {
+  if (!isInitialsAvatar(signupState.avatar)) {
+    signupState.initials = deriveInitials(e.target.value);
+    const tile = $('signupPicker').querySelector('.picker-tile.initials');
+    if (tile) tile.textContent = signupState.initials;
+  }
+});
 
 $('authUsernameBtn').addEventListener('click', saveUsername);
 $('authUsername').addEventListener('keydown', e => { if (e.key === 'Enter') saveUsername(); });
@@ -717,36 +784,50 @@ async function saveUsername() {
   if (!/^[a-z0-9_]{2,24}$/.test(username)) { authError('2–24 characters: letters, numbers and _ only.'); return; }
   const btn = $('authUsernameBtn');
   btn.disabled = true;
-  const { error } = await sb.from('profiles').insert({ id: session.user.id, username });
+  const row = { id: session.user.id, username, avatar: signupState.avatar, avatar_bg: signupState.bg, bio: '' };
+  let { error } = await sb.from('profiles').insert(row);
+  if (error && /avatar|bio|column|schema/i.test(error.message || '')) {
+    // profiles table not migrated yet — save the basics at least
+    ({ error } = await sb.from('profiles').insert({ id: session.user.id, username }));
+  }
   btn.disabled = false;
   if (error) {
     authError(error.code === '23505' ? 'That username is taken. Try another one.' : 'Something went wrong. Try again.');
     return;
   }
-  profile = { id: session.user.id, username };
+  profile = row;
+  PROFILES[username] = row;
+  PROFILE_NAMES[session.user.id] = username;
   closeAuth();
   updateAuthUI();
-  showToast(`Welcome aboard, @${username}! ${avatarFor(username)}`);
+  renderList(); refreshPopup();
+  showToast(`Welcome aboard, @${username}! 🦞`);
 }
 
-$('signOutBtn').addEventListener('click', async () => {
+async function doSignOut() {
   if (sb) await sb.auth.signOut();
   session = null; profile = null;
+  $('profileOverlay').classList.remove('open');
   updateAuthUI();
   await loadRatings();
   renderList(); refreshPopup();
-});
+}
 
 function updateAuthUI() {
   const logged = !!(session && profile);
   $('authBtn').style.display = logged ? 'none' : '';
   $('userChip').style.display = logged ? 'flex' : 'none';
   if (logged) {
-    $('userChipAvatar').textContent = avatarFor(profile.username);
-    const nameEl = $('userChipName');
-    nameEl.innerHTML = userNameHtml(profile.username);
+    const { avatar, bg } = avatarDataFor(profile.username);
+    const av = $('userChipAvatar');
+    av.textContent = avatar;
+    av.style.background = bg;
+    av.classList.toggle('initials', isInitialsAvatar(avatar));
+    $('userChipName').innerHTML = userNameHtml(profile.username);
   }
 }
+
+$('profileGearBtn').addEventListener('click', () => openUserProfile(profile.username));
 
 // ════════════════════════════════════
 // LEADERBOARD
@@ -754,13 +835,25 @@ function updateAuthUI() {
 function rankRowsHtml(entries) {
   if (!entries.length) return `<div class="rank-empty">Nobody here yet — be the first! 🦞</div>`;
   const medals = ['🥇', '🥈', '🥉'];
-  return entries.map(([name, count], i) => `
-    <div class="rank-row">
+  return entries.map(([name, count], i) => {
+    const safe = String(name).replace(/[^a-zA-Z0-9_]/g, '');
+    return `
+    <button class="rank-row" onclick="openUserProfile('${safe}')">
       <span class="rank-pos">${medals[i] || (i + 1) + '.'}</span>
-      <span class="rank-name">${avatarFor(name)} ${userNameHtml(name)}</span>
+      <span class="rank-name">${avatarHtml(name, 'avatar-xs')} ${userNameHtml(name)}</span>
       <span class="rank-score">${count}</span>
-    </div>`).join('');
+    </button>`;
+  }).join('');
 }
+
+// Tabs inside the leaderboard
+document.querySelectorAll('.rank-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.rank-tab').forEach(t => t.classList.toggle('active', t === tab));
+    $('rankSpotters').style.display = tab.dataset.tab === 'spotters' ? '' : 'none';
+    $('rankRaters').style.display = tab.dataset.tab === 'raters' ? '' : 'none';
+  });
+});
 
 function openRanking() {
   closeMobileSidebar();
@@ -787,6 +880,126 @@ $('rankBtn').addEventListener('click', openRanking);
 $('mobileRankBtn').addEventListener('click', openRanking);
 $('rankClose').addEventListener('click', () => $('rankOverlay').classList.remove('open'));
 $('rankOverlay').addEventListener('click', e => { if (e.target === $('rankOverlay')) $('rankOverlay').classList.remove('open'); });
+
+// ════════════════════════════════════
+// USER PROFILES (own + public)
+// ════════════════════════════════════
+let viewedUsername = null;
+const editState = { avatar: '🦞', bg: '#C6C6C6', initials: 'AB' };
+
+window.openUserProfile = async function (username) {
+  if (!username) return;
+  closeMobileSidebar();
+  $('rankOverlay').classList.remove('open');
+
+  // late-fetch the profile if we don't have it yet
+  if (!PROFILES[username] && sb && !usingFallback) {
+    try {
+      const { data } = await sb.from('profiles').select('*').eq('username', username).maybeSingle();
+      if (data) { PROFILES[username] = data; PROFILE_NAMES[data.id] = username; }
+    } catch (e) { /* profile stays fallback-rendered */ }
+  }
+
+  viewedUsername = username;
+  renderProfileView();
+  $('profileEditPane').style.display = 'none';
+  $('profileView').style.display = '';
+  $('profileOverlay').classList.add('open');
+};
+
+function renderProfileView() {
+  const username = viewedUsername;
+  const p = PROFILES[username] || null;
+  const own = !!(profile && profile.username === username);
+
+  const { avatar, bg } = avatarDataFor(username);
+  const av = $('profileAvatar');
+  av.textContent = avatar;
+  av.style.background = bg;
+  av.classList.toggle('initials', isInitialsAvatar(avatar));
+
+  $('profileName').innerHTML = userNameHtml(username);
+
+  const bio = (p?.bio || '').trim();
+  const bioEl = $('profileBio');
+  if (bio) { bioEl.textContent = bio; bioEl.classList.remove('empty'); }
+  else {
+    bioEl.textContent = own ? 'No bio yet — hit Edit to tell your story 🦞' : 'No bio yet.';
+    bioEl.classList.add('empty');
+  }
+
+  const added = SPOTS.filter(s => s.authorName === username);
+  const ratedIds = p ? RATING_ROWS.filter(r => r.user_id === p.id).map(r => String(r.spot_id)) : [];
+  const rated = SPOTS.filter(s => ratedIds.includes(s.id));
+  $('statAdded').textContent = added.length;
+  $('statRated').textContent = ratedIds.length;
+
+  const item = s => `<button class="profile-spot" data-spot="${escHtml(s.id)}">🦞 ${escHtml(s.name)}</button>`;
+  let lists = '';
+  if (added.length) lists += `<div class="profile-list-title">Spots added</div><div class="profile-list">${added.map(item).join('')}</div>`;
+  if (rated.length) lists += `<div class="profile-list-title">Spots rated</div><div class="profile-list">${rated.map(item).join('')}</div>`;
+  $('profileLists').innerHTML = lists;
+
+  $('profileActions').style.display = own ? 'flex' : 'none';
+}
+
+// Click a spot inside a profile → jump to it on the map
+$('profileLists').addEventListener('click', e => {
+  const btn = e.target.closest('.profile-spot');
+  if (!btn) return;
+  $('profileOverlay').classList.remove('open');
+  handleSelect(btn.dataset.spot);
+});
+
+$('profileClose').addEventListener('click', () => $('profileOverlay').classList.remove('open'));
+$('profileOverlay').addEventListener('click', e => { if (e.target === $('profileOverlay')) $('profileOverlay').classList.remove('open'); });
+$('profileSignOutBtn').addEventListener('click', doSignOut);
+
+// ── Edit own profile (avatar + bio; username is fixed) ──
+$('profileEditBtn').addEventListener('click', () => {
+  const { avatar, bg } = avatarDataFor(profile.username);
+  editState.avatar = avatar;
+  editState.bg = AVATAR_COLORS.includes(bg) ? bg : AVATAR_COLORS[0];
+  editState.initials = isInitialsAvatar(avatar) ? avatar : deriveInitials(profile.username);
+  createAvatarPicker($('editPicker'), editState);
+  $('editBio').value = PROFILES[profile.username]?.bio || '';
+  $('profileError').classList.remove('visible');
+  $('profileView').style.display = 'none';
+  $('profileEditPane').style.display = '';
+});
+
+$('editCancelBtn').addEventListener('click', () => {
+  $('profileEditPane').style.display = 'none';
+  $('profileView').style.display = '';
+});
+
+$('editSaveBtn').addEventListener('click', async () => {
+  const errEl = $('profileError');
+  errEl.classList.remove('visible');
+  const bio = $('editBio').value.trim();
+  const btn = $('editSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await sb.from('profiles')
+    .update({ avatar: editState.avatar, avatar_bg: editState.bg, bio })
+    .eq('id', profile.id);
+  btn.disabled = false; btn.textContent = 'Save';
+  if (error) {
+    errEl.textContent = /avatar|bio|column|schema/i.test(error.message || '')
+      ? 'Run the profiles update SQL in Supabase first.'
+      : 'Something went wrong. Try again.';
+    errEl.classList.add('visible');
+    return;
+  }
+  const updated = { ...(PROFILES[profile.username] || profile), avatar: editState.avatar, avatar_bg: editState.bg, bio };
+  PROFILES[profile.username] = updated;
+  profile = { ...profile, ...updated };
+  updateAuthUI();
+  renderList(); refreshPopup();
+  renderProfileView();
+  $('profileEditPane').style.display = 'none';
+  $('profileView').style.display = '';
+  showToast('Profile updated 🦞');
+});
 
 // ════════════════════════════════════
 // ADD SPOT
