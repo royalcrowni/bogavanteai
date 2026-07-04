@@ -301,8 +301,11 @@ function flagEmoji(country) {
   if (!cc) return '🌍';
   return String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
 }
+// Shorter display labels (value stored in the DB stays the full name)
+const COUNTRY_DISPLAY = { 'United Kingdom': 'UK', 'United Arab Emirates': 'UAE' };
+function countryDisplay(country) { return COUNTRY_DISPLAY[country] || country; }
 function countryWithFlag(country) {
-  return `${flagEmoji(country)} ${escHtml(country)}`;
+  return `${flagEmoji(country)} ${escHtml(countryDisplay(country))}`;
 }
 
 // ── Spot types ──
@@ -1212,7 +1215,7 @@ $('editSaveBtn').addEventListener('click', async () => {
 // ════════════════════════════════════
 // Populate the country dropdown once
 $('spotCountry').innerHTML = '<option value="" disabled selected>Select a country…</option>'
-  + COUNTRIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+  + COUNTRIES.map(c => `<option value="${escHtml(c)}">${escHtml(countryDisplay(c))}</option>`).join('');
 function openAddSpot() {
   if (!session || !profile) { showToast('Sign in first to add spots 🦞'); openAuth(); return; }
   // if we were mid-edit, switch back to a clean "add" form
