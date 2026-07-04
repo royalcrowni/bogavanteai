@@ -40,8 +40,8 @@ let PROFILES = {};              // username -> { id, username, avatar, avatar_bg
 let selectedId    = null;
 let isDark        = localStorage.getItem('boga-theme') === 'dark';
 let searchQuery   = '';
-let priceFilter   = null;       // null | 1 | 2 | 3
-let countryFilter = null;       // null | country string
+let priceFilter   = [];         // [] = all, else array of 1|2|3
+let countryFilter = [];         // [] = all, else array of country strings
 let sortBy        = 'name';
 let currentPopup  = null;
 let session       = null;      // supabase session
@@ -67,8 +67,6 @@ const map = L.map('map', {
   maxBounds: WORLD_BOUNDS,
   maxBoundsViscosity: 1.0,
 });
-L.control.zoom({ position: 'topright' }).addTo(map);
-
 // Never allow zooming out past "the whole world fills the viewport"
 function updateMinZoom() {
   const z = map.getBoundsZoom(WORLD_BOUNDS, true);
@@ -81,18 +79,6 @@ updateMinZoom();
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
 let tileLayer = L.tileLayer(TILE_LIGHT, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
-
-const LocateControl = L.Control.extend({
-  options: { position: 'topright' },
-  onAdd() {
-    const btn = L.DomUtil.create('button', 'locate-btn');
-    btn.title = 'My location';
-    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
-    L.DomEvent.on(btn, 'click', e => { L.DomEvent.stopPropagation(e); map.locate({ setView: true, maxZoom: 13 }); });
-    return btn;
-  }
-});
-new LocateControl().addTo(map);
 
 // ════════════════════════════════════
 // HELPERS
@@ -121,6 +107,22 @@ function avatarFor(username) {
 // ── Profile pictures: emoji or 2 initials on a colored disc ──
 const AVATAR_EMOJIS = ['🦐','🦞','🦀','🐡','🐟','🐋','🫍','🦑'];
 const AVATAR_COLORS = ['#C6C6C6','#96CDE2','#FFA66F','#7EDD9B','#F0E16D','#F06D6D'];
+
+// Curated community members (baked into the site — real sign-up needs email).
+// Each has a distinct avatar + a bio in the language of their country.
+const SEED_PROFILES = {
+  sarahtravels92: { avatar: '🐟', avatar_bg: '#96CDE2', bio: 'Travel blogger chasing the best lobster rolls across the globe. 🦞✈️' },
+  johnsmithla:    { avatar: '🦀', avatar_bg: '#FFA66F', bio: 'LA foodie with a serious weakness for lobster and fine dining. 🍽️' },
+  carlosgourmet:  { avatar: '🦐', avatar_bg: '#F06D6D', bio: 'Gourmet empedernido. Persigo el mejor marisco de cada rincón del mundo. 🦞' },
+  jeanpierrefood: { avatar: '🐡', avatar_bg: '#F0E16D', bio: 'Amoureux de la bonne cuisine et du homard, de Paris aux Caraïbes. 🦞' },
+  yukitaka:       { avatar: '🦑', avatar_bg: '#7EDD9B', bio: '世界中の海の幸を探す旅人。ロブスターと寿司をこよなく愛す。🦞🍣' },
+  chloesafari:    { avatar: '🐋', avatar_bg: '#C6C6C6', bio: "From the bush to the sea — hunting Cape Town's freshest seafood. 🦞🌊" },
+};
+function applySeedProfiles() {
+  for (const [u, p] of Object.entries(SEED_PROFILES)) {
+    if (!PROFILES[u]) PROFILES[u] = { username: u, ...p };
+  }
+}
 
 function isInitialsAvatar(a) { return /^[A-ZÀ-Ü]{1,2}$/.test(a || ''); }
 function deriveInitials(name) {
@@ -181,7 +183,7 @@ const GOLD_USER = 'ignacio';
 function isGold(username) { return username === GOLD_USER; }
 function userNameHtml(username) {
   const name = escHtml('@' + username);
-  return isGold(username) ? `<span class="gold-text">${name}</span>` : name;
+  return `<span class="username${isGold(username) ? ' gold-text' : ''}">${name}</span>`;
 }
 function authorBadgeHtml(username) {
   if (!username) return '';
@@ -216,26 +218,53 @@ function getFiltered() {
   const q = searchQuery.toLowerCase();
   return SPOTS.filter(loc =>
     (!q || loc.name.toLowerCase().includes(q) || (loc.description || '').toLowerCase().includes(q) || (loc.authorName || '').toLowerCase().includes(q))
-    && (priceFilter === null || loc.price === priceFilter)
-    && (countryFilter === null || loc.country === countryFilter)
+    && (priceFilter.length === 0 || priceFilter.includes(loc.price))
+    && (countryFilter.length === 0 || countryFilter.includes(loc.country))
   );
 }
 
 function getSorted(list) {
   const arr = [...list];
   switch (sortBy) {
-    case 'price':  arr.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name)); break;
-    case 'rating': arr.sort((a, b) => ratingOf(b.id).avg - ratingOf(a.id).avg || ratingOf(b.id).count - ratingOf(a.id).count); break;
-    default:       arr.sort((a, b) => a.name.localeCompare(b.name));
+    case 'price-asc':   arr.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name)); break;
+    case 'price-desc':  arr.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name)); break;
+    case 'rating-desc': arr.sort((a, b) => ratingOf(b.id).avg - ratingOf(a.id).avg || ratingOf(b.id).count - ratingOf(a.id).count); break;
+    case 'rating-asc':  arr.sort((a, b) => ratingOf(a.id).avg - ratingOf(b.id).avg || a.name.localeCompare(b.name)); break;
+    default:            arr.sort((a, b) => a.name.localeCompare(b.name));
   }
   return arr;
+}
+
+// ── Country flags ──
+const COUNTRY_ISO = {
+  'Albania':'AL','Algeria':'DZ','Andorra':'AD','Angola':'AO','Argentina':'AR','Armenia':'AM','Australia':'AU','Austria':'AT','Azerbaijan':'AZ',
+  'Bahamas':'BS','Bahrain':'BH','Bangladesh':'BD','Barbados':'BB','Belgium':'BE','Belize':'BZ','Bolivia':'BO','Bosnia and Herzegovina':'BA','Botswana':'BW','Brazil':'BR','Bulgaria':'BG',
+  'Cambodia':'KH','Cameroon':'CM','Canada':'CA','Cape Verde':'CV','Chile':'CL','China':'CN','Colombia':'CO','Costa Rica':'CR','Croatia':'HR','Cuba':'CU','Cyprus':'CY','Czechia':'CZ',
+  'Denmark':'DK','Dominican Republic':'DO','Ecuador':'EC','Egypt':'EG','El Salvador':'SV','Estonia':'EE','Ethiopia':'ET',
+  'Fiji':'FJ','Finland':'FI','France':'FR','Georgia':'GE','Germany':'DE','Ghana':'GH','Greece':'GR','Greenland':'GL','Guatemala':'GT',
+  'Haiti':'HT','Honduras':'HN','Hong Kong':'HK','Hungary':'HU','Iceland':'IS','India':'IN','Indonesia':'ID','Iran':'IR','Iraq':'IQ','Ireland':'IE','Israel':'IL','Italy':'IT',
+  'Jamaica':'JM','Japan':'JP','Jordan':'JO','Kazakhstan':'KZ','Kenya':'KE','Kuwait':'KW','Laos':'LA','Latvia':'LV','Lebanon':'LB','Libya':'LY','Liechtenstein':'LI','Lithuania':'LT','Luxembourg':'LU',
+  'Madagascar':'MG','Malaysia':'MY','Maldives':'MV','Malta':'MT','Mauritius':'MU','Mexico':'MX','Moldova':'MD','Monaco':'MC','Mongolia':'MN','Montenegro':'ME','Morocco':'MA','Mozambique':'MZ','Myanmar':'MM',
+  'Namibia':'NA','Nepal':'NP','Netherlands':'NL','New Zealand':'NZ','Nicaragua':'NI','Nigeria':'NG','North Macedonia':'MK','Norway':'NO','Oman':'OM',
+  'Pakistan':'PK','Panama':'PA','Papua New Guinea':'PG','Paraguay':'PY','Peru':'PE','Philippines':'PH','Poland':'PL','Portugal':'PT','Puerto Rico':'PR','Qatar':'QA',
+  'Romania':'RO','Russia':'RU','Rwanda':'RW','San Marino':'SM','Saudi Arabia':'SA','Senegal':'SN','Serbia':'RS','Seychelles':'SC','Singapore':'SG','Slovakia':'SK','Slovenia':'SI','Somalia':'SO','South Africa':'ZA','South Korea':'KR','Spain':'ES','Sri Lanka':'LK','Sweden':'SE','Switzerland':'CH','Syria':'SY',
+  'Taiwan':'TW','Tanzania':'TZ','Thailand':'TH','Trinidad and Tobago':'TT','Tunisia':'TN','Turkey':'TR','Uganda':'UG','Ukraine':'UA','United Arab Emirates':'AE','United Kingdom':'GB','Uruguay':'UY','USA':'US','Uzbekistan':'UZ',
+  'Venezuela':'VE','Vietnam':'VN','Yemen':'YE','Zambia':'ZM','Zimbabwe':'ZW',
+};
+function flagEmoji(country) {
+  const cc = COUNTRY_ISO[country];
+  if (!cc) return '🌍';
+  return String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+function countryWithFlag(country) {
+  return `${flagEmoji(country)} ${escHtml(country)}`;
 }
 
 function worldBounds(locs) {
   return locs.length ? locs.map(l => [l.lat, l.lng]) : null;
 }
 
-function showToast(msg, ms = 2400) {
+function showToast(msg, ms = 4200) {
   const el = $('toast');
   el.textContent = msg;
   el.classList.add('visible');
@@ -266,7 +295,7 @@ function setListLoading() {
 }
 
 async function loadData() {
-  if (!sb) { SPOTS = SEED_SPOTS; usingFallback = true; return; }
+  if (!sb) { SPOTS = SEED_SPOTS; usingFallback = true; applySeedProfiles(); return; }
   try {
     const { data, error } = await sb.from('spots').select('*');
     if (error) throw error;
@@ -278,6 +307,7 @@ async function loadData() {
     SPOTS = SEED_SPOTS;
     usingFallback = true;
   }
+  applySeedProfiles();
 }
 
 async function loadRatings() {
@@ -326,7 +356,7 @@ function markerHtml(selected) {
   const ring = selected
     ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:3px solid #ffb347;pointer-events:none;"></div>`
     : '';
-  return `<div style="position:relative;width:36px;height:36px;">${ring}<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2b2118,#1a140f);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;border:2px solid #DE6E38;box-shadow:0 2px 8px rgba(0,0,0,0.35);transform:${selected?'scale(1.12)':'scale(1)'};transition:transform 0.2s;">🦞</div></div>`;
+  return `<div style="position:relative;width:36px;height:36px;">${ring}<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2b2118,#1a140f);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;border:2px solid #D52613;box-shadow:0 2px 8px rgba(0,0,0,0.35);transform:${selected?'scale(1.12)':'scale(1)'};transition:transform 0.2s;">🦞</div></div>`;
 }
 
 function makeIcon(selected) {
@@ -382,7 +412,7 @@ function buildPopupHtml(loc) {
           <span class="popup-price price-${loc.price}">${priceStr(loc.price)}</span>
         </div>
         <div class="popup-badges">
-          <span class="popup-badge">${escHtml(loc.country)}</span>
+          <span class="popup-badge">${countryWithFlag(loc.country)}</span>
           ${author}
         </div>
       </div>
@@ -413,7 +443,7 @@ function openPopup(loc) {
     autoClose: false,
     closeOnClick: false,
     closeOnEscapeKey: true,
-    maxWidth: 340,
+    maxWidth: 400,
     offset: [0, -20],
   })
   .setLatLng([loc.lat, loc.lng])
@@ -468,35 +498,59 @@ window.rateSpot = async function (id, stars) {
 // ════════════════════════════════════
 // FILTER PILLS
 // ════════════════════════════════════
+const PRICE_LABELS = { 1: '$ — cheap', 2: '$$ — mid', 3: '$$$ — fancy' };
+
 function renderFilters() {
-  const priceWrap = $('priceFilters');
-  const prices = [null, 1, 2, 3];
-  priceWrap.innerHTML = prices.map(p => {
-    const n = p === null ? SPOTS.length : SPOTS.filter(s => s.price === p).length;
-    const label = p === null ? 'All' : priceStr(p);
-    return `<button class="pill${priceFilter === p ? ' active' : ''}" data-price="${p ?? ''}">${label} <span class="pill-count">${n}</span></button>`;
+  // ── Price menu ──
+  const prices = [1, 2, 3];
+  $('priceMenu').innerHTML = prices.map(p => {
+    const n = SPOTS.filter(s => s.price === p).length;
+    return `<button class="filter-opt${priceFilter.includes(p) ? ' checked' : ''}" data-price="${p}">
+      <span class="filter-check"></span>
+      <span class="filter-opt-label">${PRICE_LABELS[p]}</span>
+      <span class="pill-count">${n}</span>
+    </button>`;
   }).join('');
-  priceWrap.querySelectorAll('.pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const v = pill.dataset.price;
-      priceFilter = v === '' ? null : parseInt(v);
+  $('priceMenu').querySelectorAll('.filter-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const p = parseInt(opt.dataset.price);
+      priceFilter = priceFilter.includes(p) ? priceFilter.filter(x => x !== p) : [...priceFilter, p];
       onFiltersChanged();
     });
   });
 
+  // ── Country menu ──
   const countries = [...new Set(SPOTS.map(s => s.country).filter(Boolean))].sort();
-  const cWrap = $('countryFilters');
-  cWrap.innerHTML = [`<button class="pill${countryFilter === null ? ' active' : ''}" data-country="">🌍 All</button>`]
-    .concat(countries.map(c =>
-      `<button class="pill${countryFilter === c ? ' active' : ''}" data-country="${escHtml(c)}">${escHtml(c)} <span class="pill-count">${SPOTS.filter(s => s.country === c).length}</span></button>`
-    )).join('');
-  cWrap.querySelectorAll('.pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      countryFilter = pill.dataset.country === '' ? null : pill.dataset.country;
+  $('countryMenu').innerHTML = countries.map(c => {
+    const n = SPOTS.filter(s => s.country === c).length;
+    return `<button class="filter-opt${countryFilter.includes(c) ? ' checked' : ''}" data-country="${escHtml(c)}">
+      <span class="filter-check"></span>
+      <span class="filter-opt-label">${countryWithFlag(c)}</span>
+      <span class="pill-count">${n}</span>
+    </button>`;
+  }).join('');
+  $('countryMenu').querySelectorAll('.filter-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const c = opt.dataset.country;
+      countryFilter = countryFilter.includes(c) ? countryFilter.filter(x => x !== c) : [...countryFilter, c];
       onFiltersChanged();
     });
   });
 
+  updateFilterLabels();
+}
+
+function updateFilterLabels() {
+  const pl = $('priceLabel');
+  if (!priceFilter.length) pl.textContent = 'All prices';
+  else pl.textContent = priceFilter.slice().sort().map(p => priceStr(p)).join(', ');
+  $('priceToggle').classList.toggle('active', priceFilter.length > 0);
+
+  const cl = $('countryLabel');
+  if (!countryFilter.length) cl.textContent = 'All countries';
+  else if (countryFilter.length === 1) cl.textContent = countryWithFlag(countryFilter[0]);
+  else cl.textContent = `${flagEmoji(countryFilter[0])} +${countryFilter.length} countries`;
+  $('countryToggle').classList.toggle('active', countryFilter.length > 0);
 }
 
 function onFiltersChanged() {
@@ -508,6 +562,22 @@ function onFiltersChanged() {
   const pts = worldBounds(getFiltered());
   if (pts) map.fitBounds(pts, { padding: [60, 60], maxZoom: 12 });
 }
+
+// Dropdown open/close
+function setupFilterDropdown(dropdownId, toggleId) {
+  const dd = $(dropdownId), tog = $(toggleId);
+  tog.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = dd.classList.contains('open');
+    document.querySelectorAll('.filter-dropdown.open').forEach(d => d.classList.remove('open'));
+    dd.classList.toggle('open', !wasOpen);
+  });
+}
+setupFilterDropdown('priceDropdown', 'priceToggle');
+setupFilterDropdown('countryDropdown', 'countryToggle');
+document.addEventListener('click', () => {
+  document.querySelectorAll('.filter-dropdown.open').forEach(d => d.classList.remove('open'));
+});
 
 // ════════════════════════════════════
 // RENDER LIST
@@ -540,7 +610,7 @@ function renderList() {
           </div>
           ${loc.description ? `<div class="card-desc">${escHtml(loc.description)}</div>` : ''}
           <div class="card-meta-row">
-            <span class="card-badge">${escHtml(loc.country)}</span>
+            <span class="card-badge">${countryWithFlag(loc.country)}</span>
             ${author}
             ${rating}
           </div>
@@ -606,8 +676,8 @@ async function doRefresh() {
   if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
   selectedId  = null;
   searchQuery = '';
-  priceFilter = null;
-  countryFilter = null;
+  priceFilter = [];
+  countryFilter = [];
   $('searchInput').value = '';
   setListLoading();
   await loadData();

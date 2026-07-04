@@ -7,7 +7,7 @@
   <meta name="description" content="Discover the world's best lobster restaurants, hidden gems and seafood spots. Community-curated lobster guide with interactive map — from Miami to Madrid." />
   <meta name="keywords" content="best lobster, lobster restaurants, seafood spots, lobster worldwide, bogavante, best lobster near me" />
   <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#DE6E38" />
+  <meta name="theme-color" content="#D52613" />
 
   <!-- Favicon for all platforms including Slack -->
   <link rel="icon" type="image/png" sizes="32x32" href="FavIconBogavante.png">
@@ -33,7 +33,7 @@
   <meta name="twitter:image" content="https://bogavante.ai/preview.png" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2.8" />
 </head>
 <body>
 
@@ -98,7 +98,7 @@
 
       <!-- Auth row: sign-in button OR user chip -->
       <div class="auth-row">
-        <button id="authBtn" class="auth-signin-btn">Sign in — add your own spots 🦞</button>
+        <button id="authBtn" class="auth-signin-btn"><strong>Sign in</strong> to add your own spots 🦞</button>
         <div id="userChip" class="user-chip" style="display:none">
           <span class="avatar-circle avatar-sm" id="userChipAvatar">🦞</span>
           <span id="userChipName">@user</span>
@@ -118,16 +118,30 @@
 
     <!-- Filters -->
     <div class="filters">
-      <div class="filter-row" id="priceFilters"></div>
-      <div class="filter-row" id="countryFilters"></div>
+      <div class="filter-dropdown" id="priceDropdown">
+        <button class="filter-toggle" id="priceToggle">
+          <span id="priceLabel">All prices</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="filter-menu" id="priceMenu"></div>
+      </div>
+      <div class="filter-dropdown" id="countryDropdown">
+        <button class="filter-toggle" id="countryToggle">
+          <span id="countryLabel">All countries</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="filter-menu" id="countryMenu"></div>
+      </div>
     </div>
 
     <div class="list-toolbar">
       <div class="spots-count" id="spotsCount"></div>
       <select id="sortSelect" class="sort-select">
         <option value="name">Sort: Name</option>
-        <option value="price">Sort: Price</option>
-        <option value="rating">Sort: Rating</option>
+        <option value="price-asc">Price: low to high</option>
+        <option value="price-desc">Price: high to low</option>
+        <option value="rating-desc">Rating: high to low</option>
+        <option value="rating-asc">Rating: low to high</option>
       </select>
     </div>
     <div class="spots-list" id="spotsList"></div>
@@ -347,6 +361,12 @@
       <h4>10. General</h4>
       <p>If any provision of these Terms is found unenforceable, the remaining provisions stay in full force. Our failure to enforce a right is not a waiver of it. You may not assign your rights under these Terms; we may assign ours in connection with a business transfer. These Terms are governed by the laws applicable at our place of establishment, without prejudice to any mandatory consumer protections that apply where you live.</p>
 
+      <h4>11. Consent to receive emails</h4>
+      <p><strong>By checking the box and accepting these Terms, you expressly consent to receive occasional emails from Bogavante.ai</strong> — including news, feature updates, community highlights, and other relevant information about the service. We won't flood your inbox, and you can unsubscribe at any time using the link in any of those emails; opting out won't affect your ability to use Bogavante. This consent is given knowingly and voluntarily as part of accepting these Terms.</p>
+
+      <h4>12. Email provided at your own risk</h4>
+      <p><strong>You provide your email address entirely at your own responsibility and risk.</strong> By submitting it, you acknowledge and accept that your email address is recorded and stored in a database, and that it remains stored under your own responsibility. While we take reasonable measures to protect it, <strong>Bogavante.ai does not accept any liability whatsoever for any unauthorized access, hacking, breach, leak, or loss of the database or of any personal data it contains</strong>, to the maximum extent permitted by applicable law. You agree that you provide your email with full awareness of these inherent risks and that you will not hold Bogavante.ai, its operators, or its contributors responsible for any such event.</p>
+
       <p class="terms-footer">Questions about these Terms? Reach out through the links in the About section. Now go eat some lobster. 🦞</p>
     </div>
     <button class="btn-pro" id="termsAgreeBtn">I agree 🦞</button>
@@ -368,6 +388,7 @@
       Built by <a href="https://ignaciomanzano.com" target="_blank" rel="noopener">ignacio</a> &amp; <a href="https://enrineer.com" target="_blank" rel="noopener">enrineer</a>.
     </p>
     <button class="modal-close-btn" id="modalCloseBtn">Close</button>
+    <div class="about-meta">🇪🇺 Data kept in the EU · V2.8</div>
   </div>
 </div>
 
@@ -377,6 +398,9 @@
 <!-- ═══════════════ SCRIPTS ═══════════════ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=2.8"></script>
+
+<!-- Vercel Web Analytics -->
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
