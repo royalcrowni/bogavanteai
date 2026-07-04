@@ -33,7 +33,7 @@
   <meta name="twitter:image" content="https://bogavante.ai/preview.png" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css?v=3.1" />
+  <link rel="stylesheet" href="styles.css?v=3.2" />
 </head>
 <body>
 
@@ -118,13 +118,6 @@
 
     <!-- Filters -->
     <div class="filters">
-      <div class="filter-dropdown" id="priceDropdown">
-        <button class="filter-toggle" id="priceToggle">
-          <span id="priceLabel">All prices</span>
-          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="filter-menu" id="priceMenu"></div>
-      </div>
       <div class="filter-dropdown" id="countryDropdown">
         <button class="filter-toggle" id="countryToggle">
           <span id="countryLabel">All countries</span>
@@ -138,6 +131,13 @@
           <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="filter-menu" id="typeMenu"></div>
+      </div>
+      <div class="filter-dropdown" id="priceDropdown">
+        <button class="filter-toggle" id="priceToggle">
+          <span id="priceLabel">All prices</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="filter-menu" id="priceMenu"></div>
       </div>
     </div>
 
@@ -404,7 +404,7 @@
       <span class="about-more">For more info go to <a href="/info.html">bogavante.ai/info</a></span>
     </p>
     <button class="modal-close-btn" id="modalCloseBtn">Close</button>
-    <div class="about-meta">🇪🇺 Data kept in the EU · V3.1</div>
+    <div class="about-meta">🇪🇺 Data kept in the EU · V3.2</div>
   </div>
 </div>
 
@@ -414,7 +414,7 @@
 <!-- ═══════════════ SCRIPTS ═══════════════ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=3.1"></script>
+<script src="app.js?v=3.2"></script>
 
 <!-- Vercel Web Analytics -->
 <script defer src="/_vercel/insights/script.js"></script>

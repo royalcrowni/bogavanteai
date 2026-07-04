@@ -671,6 +671,7 @@ function updateFilterLabels() {
 
   const tl = $('typeLabel');
   if (!typeFilter.length) tl.textContent = 'All types';
+  else if (typeFilter.length === 1) tl.textContent = TYPE_LABELS[typeFilter[0]];
   else tl.textContent = typeFilter.map(t => TYPE_EMOJI[t]).join(' ');
   $('typeToggle').classList.toggle('active', typeFilter.length > 0);
 }

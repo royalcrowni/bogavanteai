@@ -287,18 +287,17 @@ body {
 .search-input::placeholder { color: var(--text-muted); }
 .search-input:focus { border-color: var(--brand); }
 
-/* Filters */
+/* Filters — stacked full width so the labels are always readable */
 .filters {
   padding: 4px 22px 12px;
-  display: flex; gap: 8px;
-  flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 8px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .pill-count { font-weight: 400; opacity: 0.7; }
 
-/* ── Filter dropdowns (price / country / type) ── */
-.filter-dropdown { position: relative; flex: 1; min-width: 96px; }
+/* ── Filter dropdowns (country / type / price) ── */
+.filter-dropdown { position: relative; width: 100%; }
 .filter-toggle {
   width: 100%;
   display: flex; align-items: center; justify-content: space-between; gap: 6px;
