@@ -32,3 +32,8 @@ drop policy if exists "Webmaster can delete spots" on public.spots;
 create policy "Webmaster can delete spots"
   on public.spots for delete to authenticated
   using (public.is_webmaster());
+
+drop policy if exists "Webmaster can update any spot" on public.spots;
+create policy "Webmaster can update any spot"
+  on public.spots for update to authenticated
+  using (public.is_webmaster());

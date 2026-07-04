@@ -54,6 +54,10 @@ let picking = false;
 let pickedLatLng = null;
 let pickMarker = null;
 
+// webmaster spot-editing state
+let editingSpotId = null;
+let editingOriginal = null; // { lat, lng } before the edit
+
 const $ = id => document.getElementById(id);
 
 // ════════════════════════════════════
@@ -473,7 +477,7 @@ function buildPopupHtml(loc) {
     <hr class="popup-divider">
     <div class="popup-footer">
       <div class="popup-actions">
-        ${isWebmaster() ? `<button class="popup-share popup-delete" onclick="deleteSpot('${escHtml(loc.id)}')" title="Delete this spot (webmaster)">🗑️</button>` : ''}
+        ${isWebmaster() ? `<button class="popup-share" onclick="editSpot('${escHtml(loc.id)}')" title="Edit this spot (webmaster)">✏️</button><button class="popup-share popup-delete" onclick="deleteSpot('${escHtml(loc.id)}')" title="Delete this spot (webmaster)">🗑️</button>` : ''}
         <button class="popup-share" onclick="shareSpot('${escHtml(loc.id)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           Share
@@ -518,6 +522,30 @@ function closePopup() {
   if (pts) map.fitBounds(pts, { padding: [60, 60], maxZoom: 12 });
 }
 window.closePopup = closePopup;
+
+// ── Edit spot (webmaster only — RLS enforces it server-side too) ──
+window.editSpot = function (id) {
+  if (!isWebmaster()) return;
+  const loc = SPOTS.find(l => l.id === id);
+  if (!loc) return;
+  editingSpotId = id;
+  editingOriginal = { lat: loc.lat, lng: loc.lng };
+  $('spotName').value = loc.name;
+  $('spotDesc').value = loc.description || '';
+  $('spotPrice').value = String(loc.price);
+  $('spotCountry').value = loc.country;
+  if (!$('spotCountry').value) $('spotCountry').selectedIndex = 0; // country not in list
+  $('spotType').value = typeOf(loc);
+  setPickedLocation(L.latLng(loc.lat, loc.lng));
+  setAddSpotMode(true);
+  $('addSpotError').classList.remove('visible');
+  $('addSpotOverlay').classList.add('open');
+};
+
+function setAddSpotMode(editing) {
+  $('addSpotTitle').textContent = editing ? 'Edit lobster spot' : 'Add a lobster spot';
+  $('publishSpotBtn').textContent = editing ? 'Save changes 🦞' : 'Publish 🦞';
+}
 
 // ── Delete (webmaster only — RLS enforces it server-side too) ──
 window.deleteSpot = async function (id) {
@@ -1187,6 +1215,8 @@ $('spotCountry').innerHTML = '<option value="" disabled selected>Select a countr
   + COUNTRIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
 function openAddSpot() {
   if (!session || !profile) { showToast('Sign in first to add spots 🦞'); openAuth(); return; }
+  // if we were mid-edit, switch back to a clean "add" form
+  if (editingSpotId) { resetAddSpotForm(); }
   $('addSpotOverlay').classList.add('open');
   $('addSpotError').classList.remove('visible');
 }
@@ -1198,6 +1228,9 @@ function resetAddSpotForm() {
   $('spotPrice').value = '2';
   $('spotType').value = 'casual';
   pickedLatLng = null;
+  editingSpotId = null;
+  editingOriginal = null;
+  setAddSpotMode(false);
   $('spotCoords').classList.remove('coords-ok');
   $('pickLocationBtn').classList.remove('picked');
   $('pickLocationLabel').textContent = 'Pick on the map';
@@ -1289,35 +1322,58 @@ $('publishSpotBtn').addEventListener('click', async () => {
   if (!sb || !session || !profile) { showErr('Something went wrong. Try again.'); return; }
 
   const btn = $('publishSpotBtn');
-  btn.disabled = true; btn.textContent = 'Publishing…';
+  const isEdit = !!editingSpotId;
+  btn.disabled = true; btn.textContent = isEdit ? 'Saving…' : 'Publishing…';
 
-  const row = {
-    name, description, price, country,
-    type: $('spotType').value,
-    lat: pickedLatLng.lat, lng: pickedLatLng.lng,
-    directions_url: `https://www.google.com/maps?q=${pickedLatLng.lat},${pickedLatLng.lng}`,
-    author_id: session.user.id,
-    author_name: profile.username,
-  };
-  let { data, error } = await sb.from('spots').insert(row).select().single();
-  if (error && /type|column|schema/i.test(error.message || '')) {
-    // spots table not migrated yet — publish without the type
-    delete row.type;
+  let data, error;
+  if (isEdit) {
+    // Webmaster edit: update every field; refresh the directions link only if moved
+    const patch = {
+      name, description, price, country,
+      type: $('spotType').value,
+      lat: pickedLatLng.lat, lng: pickedLatLng.lng,
+    };
+    const moved = !editingOriginal
+      || Math.abs(editingOriginal.lat - pickedLatLng.lat) > 1e-9
+      || Math.abs(editingOriginal.lng - pickedLatLng.lng) > 1e-9;
+    if (moved) patch.directions_url = `https://www.google.com/maps?q=${pickedLatLng.lat},${pickedLatLng.lng}`;
+
+    ({ data, error } = await sb.from('spots').update(patch).eq('id', editingSpotId).select().single());
+    if (error && /type|column|schema/i.test(error.message || '')) {
+      delete patch.type;
+      ({ data, error } = await sb.from('spots').update(patch).eq('id', editingSpotId).select().single());
+    }
+  } else {
+    const row = {
+      name, description, price, country,
+      type: $('spotType').value,
+      lat: pickedLatLng.lat, lng: pickedLatLng.lng,
+      directions_url: `https://www.google.com/maps?q=${pickedLatLng.lat},${pickedLatLng.lng}`,
+      author_id: session.user.id,
+      author_name: profile.username,
+    };
     ({ data, error } = await sb.from('spots').insert(row).select().single());
+    if (error && /type|column|schema/i.test(error.message || '')) {
+      // spots table not migrated yet — publish without the type
+      delete row.type;
+      ({ data, error } = await sb.from('spots').insert(row).select().single());
+    }
   }
 
-  btn.disabled = false; btn.textContent = 'Publish 🦞';
+  btn.disabled = false; btn.textContent = isEdit ? 'Save changes 🦞' : 'Publish 🦞';
 
   if (error) {
     showErr((error.message || '').includes('RATE_LIMIT')
       ? 'Easy, sailor! ⚓ You can add up to 3 spots per day.'
-      : 'Something went wrong. Try again.');
+      : isEdit
+        ? 'Could not save — run the types/webmaster SQL first.'
+        : 'Something went wrong. Try again.');
     return;
   }
 
   closeAddSpot();
   resetAddSpotForm();
-  showToast('Spot published! Thank you 🦞');
+  showToast(isEdit ? 'Spot updated ✏️🦞' : 'Spot published! Thank you 🦞');
   await loadData();
   renderFilters();
   buildMarkers();
