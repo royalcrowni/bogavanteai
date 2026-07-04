@@ -33,7 +33,7 @@
   <meta name="twitter:image" content="https://bogavante.ai/preview.png" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css?v=2.8" />
+  <link rel="stylesheet" href="styles.css?v=2.9" />
 </head>
 <body>
 
@@ -131,6 +131,13 @@
           <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="filter-menu" id="countryMenu"></div>
+      </div>
+      <div class="filter-dropdown" id="typeDropdown">
+        <button class="filter-toggle" id="typeToggle">
+          <span id="typeLabel">All types</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="filter-menu" id="typeMenu"></div>
       </div>
     </div>
 
@@ -250,6 +257,13 @@
       </div>
     </div>
 
+    <label class="form-label">Type</label>
+    <select class="waitlist-input" id="spotType">
+      <option value="casual" selected>🍽️ Casual</option>
+      <option value="premium">⭐ Premium</option>
+      <option value="beach">🌴 Beach Shack</option>
+    </select>
+
     <label class="form-label">Location</label>
     <button class="pick-location-btn" id="pickLocationBtn">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -304,6 +318,7 @@
         <button class="btn-secondary" id="profileEditBtn">Edit</button>
         <button class="btn-pro" id="profileSignOutBtn">Sign out</button>
       </div>
+      <button class="link-btn" id="moreSettingsLink">More settings →</button>
     </div>
 
     <!-- Edit mode (own profile only) -->
@@ -385,10 +400,11 @@
     </div>
     <p class="modal-body">
       Made by <strong>Lobster Lovers</strong> to share their favorite lobster spots worldwide.<br>
-      Built by <a href="https://ignaciomanzano.com" target="_blank" rel="noopener">ignacio</a> &amp; <a href="https://enrineer.com" target="_blank" rel="noopener">enrineer</a>.
+      Built by <a href="https://ignaciomanzano.com" target="_blank" rel="noopener">ignacio</a> &amp; <a href="https://enrineer.com" target="_blank" rel="noopener">enrineer</a>.<br>
+      <span class="about-more">For more info go to <a href="/info.html">bogavante.ai/info</a></span>
     </p>
     <button class="modal-close-btn" id="modalCloseBtn">Close</button>
-    <div class="about-meta">🇪🇺 Data kept in the EU · V2.8</div>
+    <div class="about-meta">🇪🇺 Data kept in the EU · V2.9</div>
   </div>
 </div>
 
@@ -398,7 +414,7 @@
 <!-- ═══════════════ SCRIPTS ═══════════════ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=2.8"></script>
+<script src="app.js?v=2.9"></script>
 
 <!-- Vercel Web Analytics -->
 <script defer src="/_vercel/insights/script.js"></script>

@@ -42,6 +42,7 @@ let isDark        = localStorage.getItem('boga-theme') === 'dark';
 let searchQuery   = '';
 let priceFilter   = [];         // [] = all, else array of 1|2|3
 let countryFilter = [];         // [] = all, else array of country strings
+let typeFilter    = [];         // [] = all, else array of 'premium'|'casual'|'beach'
 let sortBy        = 'name';
 let currentPopup  = null;
 let session       = null;      // supabase session
@@ -56,16 +57,16 @@ let pickMarker = null;
 const $ = id => document.getElementById(id);
 
 // ════════════════════════════════════
-// MAP INIT — clamped to the world so no gray bands ever show
+// MAP INIT — infinite horizontal wrap, vertical clamped (no gray bands)
 // ════════════════════════════════════
 const WORLD_BOUNDS = L.latLngBounds([[-85, -180], [85, 180]]);
+const MAX_LAT = 85;
 
 const map = L.map('map', {
   center: [22, -20],
   zoom: 3,
   zoomControl: false,
-  maxBounds: WORLD_BOUNDS,
-  maxBoundsViscosity: 1.0,
+  worldCopyJump: true, // pan endlessly sideways — the world repeats
 });
 // Never allow zooming out past "the whole world fills the viewport"
 function updateMinZoom() {
@@ -75,6 +76,28 @@ function updateMinZoom() {
 }
 map.on('resize', updateMinZoom);
 updateMinZoom();
+
+// Clamp vertical panning so gray bands never show above/below the map,
+// while leaving left/right completely free (infinite wrap)
+let clampingLat = false;
+function clampLatitude() {
+  if (clampingLat) return;
+  const z = map.getZoom();
+  const half = map.getSize().y / 2;
+  const topY = map.project(L.latLng(MAX_LAT, 0), z).y;
+  const botY = map.project(L.latLng(-MAX_LAT, 0), z).y;
+  const cPt = map.project(map.getCenter(), z);
+  let y = cPt.y;
+  if (y - half < topY) y = topY + half;
+  if (y + half > botY) y = botY - half;
+  if (Math.abs(y - cPt.y) > 0.5) {
+    clampingLat = true;
+    map.panTo(map.unproject(L.point(cPt.x, y), z), { animate: false });
+    clampingLat = false;
+  }
+}
+map.on('move', clampLatitude);
+map.on('moveend', clampLatitude);
 
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
@@ -178,12 +201,29 @@ function createAvatarPicker(container, state) {
   render();
 }
 
-// @ignacio gets the golden treatment; everyone else stays regular
+// @ignacio gets the golden treatment; #2 and #3 top spotters get silver & bronze
 const GOLD_USER = 'ignacio';
 function isGold(username) { return username === GOLD_USER; }
+
+let RANK_TIERS = {}; // username -> 'gold' | 'silver' | 'bronze' (by spots added)
+function computeRankTiers() {
+  const counts = {};
+  SPOTS.forEach(s => { if (s.authorName) counts[s.authorName] = (counts[s.authorName] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  RANK_TIERS = {};
+  if (sorted[0]) RANK_TIERS[sorted[0]] = 'gold';
+  if (sorted[1]) RANK_TIERS[sorted[1]] = 'silver';
+  if (sorted[2]) RANK_TIERS[sorted[2]] = 'bronze';
+}
+function nameTier(username) {
+  if (isGold(username)) return 'gold'; // the webmaster is always golden
+  const t = RANK_TIERS[username];
+  return t === 'gold' ? 'gold' : (t || null);
+}
 function userNameHtml(username) {
   const name = escHtml('@' + username);
-  return `<span class="username${isGold(username) ? ' gold-text' : ''}">${name}</span>`;
+  const tier = nameTier(username);
+  return `<span class="username${tier ? ` ${tier}-text` : ''}">${name}</span>`;
 }
 function authorBadgeHtml(username) {
   if (!username) return '';
@@ -220,6 +260,7 @@ function getFiltered() {
     (!q || loc.name.toLowerCase().includes(q) || (loc.description || '').toLowerCase().includes(q) || (loc.authorName || '').toLowerCase().includes(q))
     && (priceFilter.length === 0 || priceFilter.includes(loc.price))
     && (countryFilter.length === 0 || countryFilter.includes(loc.country))
+    && (typeFilter.length === 0 || typeFilter.includes(typeOf(loc)))
   );
 }
 
@@ -260,6 +301,14 @@ function countryWithFlag(country) {
   return `${flagEmoji(country)} ${escHtml(country)}`;
 }
 
+// ── Spot types ──
+const TYPE_EMOJI  = { premium: '⭐', casual: '🍽️', beach: '🌴' };
+const TYPE_LABELS = { premium: '⭐ Premium', casual: '🍽️ Casual', beach: '🌴 Beach Shack' };
+function typeOf(loc) {
+  // fallback for rows created before the type column existed
+  return TYPE_EMOJI[loc.type] ? loc.type : (loc.price === 3 ? 'premium' : 'casual');
+}
+
 function worldBounds(locs) {
   return locs.length ? locs.map(l => [l.lat, l.lng]) : null;
 }
@@ -286,6 +335,7 @@ function mapRow(r) {
     directionsUrl: r.directions_url,
     lastVisited: r.last_visited,
     authorName: r.author_name,
+    type: r.type,
   };
 }
 
@@ -308,6 +358,7 @@ async function loadData() {
     usingFallback = true;
   }
   applySeedProfiles();
+  computeRankTiers();
 }
 
 async function loadRatings() {
@@ -405,7 +456,7 @@ function buildPopupHtml(loc) {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <div class="popup-header">
-      <div class="popup-icon-box">🦞</div>
+      <div class="popup-icon-box">${TYPE_EMOJI[typeOf(loc)]}</div>
       <div class="popup-header-info">
         <div class="popup-name-row">
           <span class="popup-name">${escHtml(loc.name)}</span>
@@ -422,6 +473,7 @@ function buildPopupHtml(loc) {
     <hr class="popup-divider">
     <div class="popup-footer">
       <div class="popup-actions">
+        ${isWebmaster() ? `<button class="popup-share popup-delete" onclick="deleteSpot('${escHtml(loc.id)}')" title="Delete this spot (webmaster)">🗑️</button>` : ''}
         <button class="popup-share" onclick="shareSpot('${escHtml(loc.id)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           Share
@@ -466,6 +518,22 @@ function closePopup() {
   if (pts) map.fitBounds(pts, { padding: [60, 60], maxZoom: 12 });
 }
 window.closePopup = closePopup;
+
+// ── Delete (webmaster only — RLS enforces it server-side too) ──
+window.deleteSpot = async function (id) {
+  if (!isWebmaster() || !sb || usingFallback) return;
+  const loc = SPOTS.find(l => l.id === id);
+  if (!confirm(`Delete "${loc ? loc.name : 'this spot'}" from the map? This cannot be undone.`)) return;
+  const { error } = await sb.from('spots').delete().eq('id', id);
+  if (error) { showToast('Could not delete — run the types/webmaster SQL first.'); return; }
+  if (currentPopup) { map.closePopup(currentPopup); currentPopup = null; }
+  selectedId = null;
+  showToast('Spot deleted 🗑️');
+  await loadData();
+  renderFilters();
+  buildMarkers();
+  renderList();
+};
 
 // ── Share ──
 window.shareSpot = function (id) {
@@ -537,6 +605,24 @@ function renderFilters() {
     });
   });
 
+  // ── Type menu ──
+  const types = ['premium', 'casual', 'beach'];
+  $('typeMenu').innerHTML = types.map(t => {
+    const n = SPOTS.filter(s => typeOf(s) === t).length;
+    return `<button class="filter-opt${typeFilter.includes(t) ? ' checked' : ''}" data-type="${t}">
+      <span class="filter-check"></span>
+      <span class="filter-opt-label">${TYPE_LABELS[t]}</span>
+      <span class="pill-count">${n}</span>
+    </button>`;
+  }).join('');
+  $('typeMenu').querySelectorAll('.filter-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const t = opt.dataset.type;
+      typeFilter = typeFilter.includes(t) ? typeFilter.filter(x => x !== t) : [...typeFilter, t];
+      onFiltersChanged();
+    });
+  });
+
   updateFilterLabels();
 }
 
@@ -551,6 +637,11 @@ function updateFilterLabels() {
   else if (countryFilter.length === 1) cl.textContent = countryWithFlag(countryFilter[0]);
   else cl.textContent = `${flagEmoji(countryFilter[0])} +${countryFilter.length} countries`;
   $('countryToggle').classList.toggle('active', countryFilter.length > 0);
+
+  const tl = $('typeLabel');
+  if (!typeFilter.length) tl.textContent = 'All types';
+  else tl.textContent = typeFilter.map(t => TYPE_EMOJI[t]).join(' ');
+  $('typeToggle').classList.toggle('active', typeFilter.length > 0);
 }
 
 function onFiltersChanged() {
@@ -575,6 +666,7 @@ function setupFilterDropdown(dropdownId, toggleId) {
 }
 setupFilterDropdown('priceDropdown', 'priceToggle');
 setupFilterDropdown('countryDropdown', 'countryToggle');
+setupFilterDropdown('typeDropdown', 'typeToggle');
 document.addEventListener('click', () => {
   document.querySelectorAll('.filter-dropdown.open').forEach(d => d.classList.remove('open'));
 });
@@ -602,7 +694,7 @@ function renderList() {
     return `
     <div class="spot-card${selectedId === loc.id ? ' selected' : ''}" data-id="${escHtml(loc.id)}">
       <div class="card-top">
-        <span class="card-icon">🦞</span>
+        <span class="card-icon">${TYPE_EMOJI[typeOf(loc)]}</span>
         <div class="card-body">
           <div class="card-name-row">
             <span class="card-name">${escHtml(loc.name)}</span>
@@ -678,6 +770,7 @@ async function doRefresh() {
   searchQuery = '';
   priceFilter = [];
   countryFilter = [];
+  typeFilter = [];
   $('searchInput').value = '';
   setListLoading();
   await loadData();
@@ -1010,8 +1103,15 @@ function renderProfileView() {
   if (rated.length) lists += `<div class="profile-list-title">Spots rated</div><div class="profile-list">${rated.map(item).join('')}</div>`;
   $('profileLists').innerHTML = lists;
 
-  $('profileActions').style.display = own ? 'flex' : 'none';
+  // Own profile: full actions. Webmaster (@ignacio): can edit anyone with a DB row.
+  const canEdit = own || (isWebmaster() && !!p?.id);
+  $('profileActions').style.display = canEdit ? 'flex' : 'none';
+  $('profileEditBtn').style.display = canEdit ? '' : 'none';
+  $('profileSignOutBtn').style.display = own ? '' : 'none';
+  $('moreSettingsLink').style.display = own ? '' : 'none';
 }
+
+function isWebmaster() { return !!(profile && profile.username === GOLD_USER); }
 
 // Click a spot inside a profile → jump to it on the map
 $('profileLists').addEventListener('click', e => {
@@ -1024,15 +1124,18 @@ $('profileLists').addEventListener('click', e => {
 $('profileClose').addEventListener('click', () => $('profileOverlay').classList.remove('open'));
 $('profileOverlay').addEventListener('click', e => { if (e.target === $('profileOverlay')) $('profileOverlay').classList.remove('open'); });
 $('profileSignOutBtn').addEventListener('click', doSignOut);
+$('moreSettingsLink').addEventListener('click', () => { window.location.href = '/info.html#delete-account'; });
 
-// ── Edit own profile (avatar + bio; username is fixed) ──
+// ── Edit profile (avatar + bio; username is fixed).
+//    Works on the viewed profile: your own, or anyone's if you're the webmaster.
 $('profileEditBtn').addEventListener('click', () => {
-  const { avatar, bg } = avatarDataFor(profile.username);
+  const target = viewedUsername;
+  const { avatar, bg } = avatarDataFor(target);
   editState.avatar = avatar;
   editState.bg = AVATAR_COLORS.includes(bg) ? bg : AVATAR_COLORS[0];
-  editState.initials = isInitialsAvatar(avatar) ? avatar : deriveInitials(profile.username);
+  editState.initials = isInitialsAvatar(avatar) ? avatar : deriveInitials(target);
   createAvatarPicker($('editPicker'), editState);
-  $('editBio').value = PROFILES[profile.username]?.bio || '';
+  $('editBio').value = PROFILES[target]?.bio || '';
   $('profileError').classList.remove('visible');
   $('profileView').style.display = 'none';
   $('profileEditPane').style.display = '';
@@ -1046,24 +1149,29 @@ $('editCancelBtn').addEventListener('click', () => {
 $('editSaveBtn').addEventListener('click', async () => {
   const errEl = $('profileError');
   errEl.classList.remove('visible');
+  const showErr = m => { errEl.textContent = m; errEl.classList.add('visible'); };
+
+  const target = PROFILES[viewedUsername];
+  if (!target?.id) { showErr('This curated demo user lives in the code, not the database.'); return; }
+  const own = !!(profile && profile.username === viewedUsername);
+  if (!own && !isWebmaster()) { showErr('Something went wrong. Try again.'); return; }
+
   const bio = $('editBio').value.trim();
   const btn = $('editSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
   const { error } = await sb.from('profiles')
     .update({ avatar: editState.avatar, avatar_bg: editState.bg, bio })
-    .eq('id', profile.id);
+    .eq('id', target.id);
   btn.disabled = false; btn.textContent = 'Save';
   if (error) {
-    errEl.textContent = /avatar|bio|column|schema/i.test(error.message || '')
+    showErr(/avatar|bio|column|schema/i.test(error.message || '')
       ? 'Run the profiles update SQL in Supabase first.'
-      : 'Something went wrong. Try again.';
-    errEl.classList.add('visible');
+      : 'Something went wrong. Try again.');
     return;
   }
-  const updated = { ...(PROFILES[profile.username] || profile), avatar: editState.avatar, avatar_bg: editState.bg, bio };
-  PROFILES[profile.username] = updated;
-  profile = { ...profile, ...updated };
-  updateAuthUI();
+  const updated = { ...target, avatar: editState.avatar, avatar_bg: editState.bg, bio };
+  PROFILES[viewedUsername] = updated;
+  if (own) { profile = { ...profile, ...updated }; updateAuthUI(); }
   renderList(); refreshPopup();
   renderProfileView();
   $('profileEditPane').style.display = 'none';
@@ -1088,6 +1196,7 @@ function resetAddSpotForm() {
   ['spotName', 'spotDesc', 'spotCoords'].forEach(id => $(id).value = '');
   $('spotCountry').selectedIndex = 0;
   $('spotPrice').value = '2';
+  $('spotType').value = 'casual';
   pickedLatLng = null;
   $('spotCoords').classList.remove('coords-ok');
   $('pickLocationBtn').classList.remove('picked');
@@ -1184,12 +1293,18 @@ $('publishSpotBtn').addEventListener('click', async () => {
 
   const row = {
     name, description, price, country,
+    type: $('spotType').value,
     lat: pickedLatLng.lat, lng: pickedLatLng.lng,
     directions_url: `https://www.google.com/maps?q=${pickedLatLng.lat},${pickedLatLng.lng}`,
     author_id: session.user.id,
     author_name: profile.username,
   };
-  const { data, error } = await sb.from('spots').insert(row).select().single();
+  let { data, error } = await sb.from('spots').insert(row).select().single();
+  if (error && /type|column|schema/i.test(error.message || '')) {
+    // spots table not migrated yet — publish without the type
+    delete row.type;
+    ({ data, error } = await sb.from('spots').insert(row).select().single());
+  }
 
   btn.disabled = false; btn.textContent = 'Publish 🦞';
 

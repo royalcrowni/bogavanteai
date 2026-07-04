@@ -291,13 +291,14 @@ body {
 .filters {
   padding: 4px 22px 12px;
   display: flex; gap: 8px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .pill-count { font-weight: 400; opacity: 0.7; }
 
-/* ── Filter dropdowns (price / country) ── */
-.filter-dropdown { position: relative; flex: 1; min-width: 0; }
+/* ── Filter dropdowns (price / country / type) ── */
+.filter-dropdown { position: relative; flex: 1; min-width: 96px; }
 .filter-toggle {
   width: 100%;
   display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -473,6 +474,36 @@ body {
   background-clip: text;
 }
 @keyframes goldShimmer { to { background-position: 200% center; } }
+
+/* ── Silver #2 & Bronze #3 (top spotters) ── */
+.silver-text {
+  background: linear-gradient(90deg, #55595f, #9aa0a6, #dfe3e8, #9aa0a6, #55595f);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+  animation: goldShimmer 2.4s linear infinite;
+}
+.dark .silver-text {
+  background-image: linear-gradient(90deg, #8b9198, #c0c6cc, #f2f5f8, #c0c6cc, #8b9198);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.bronze-text {
+  background: linear-gradient(90deg, #5e3a17, #a4692f, #d99a5b, #a4692f, #5e3a17);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+  animation: goldShimmer 2.4s linear infinite;
+}
+.dark .bronze-text {
+  background-image: linear-gradient(90deg, #9c6a35, #cd8f4f, #f0c496, #cd8f4f, #9c6a35);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
 .rating-badge {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 12px; font-weight: 700; color: var(--brand);
@@ -755,6 +786,11 @@ body {
   color: var(--text-muted);
   opacity: 0.7;
 }
+.about-more { font-size: 13px; }
+
+/* Webmaster delete button in popups */
+.popup-delete { color: #8a7d72; }
+.popup-delete:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
 
 /* Refresh spin */
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1029,8 +1065,8 @@ body {
 .btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
 .edit-title { margin-bottom: 14px; }
 
-/* Author badges are clickable now */
-.author-badge { cursor: pointer; border: none; font-family: inherit; }
+/* Author badges are clickable now (border comes from the main rule) */
+.author-badge { cursor: pointer; font-family: inherit; }
 .author-badge .avatar-xs { margin-right: 1px; }
 
 /* Coordinates input */
@@ -1117,14 +1153,30 @@ select.waitlist-input { cursor: pointer; }
 }
 
 @media (max-width: 639px) {
+  /* Nav floats OVER the map: fixed on top, map runs underneath,
+     so the rounded bottom corners sit on top of map tiles */
   #mobileNav {
     display: flex;
+    position: fixed;
+    top: 0; left: 0; right: 0;
     height: 82px;
     min-height: 82px;
     border-bottom-left-radius: 22px;
     border-bottom-right-radius: 22px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+    transition: border-radius 0.25s, background 0.2s, border-color 0.2s;
   }
   .mobile-logo-img { height: 66px; max-width: 210px; }
+
+  /* Map fills the whole viewport (under the nav) */
+  #mainLayout { position: absolute; inset: 0; }
+
+  /* Menu open → nav squares off and the menu gets the rounded bottom corners */
+  body:has(#sidebar.open) #mobileNav {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: none;
+  }
 
   #sidebar {
     position: fixed;
@@ -1135,6 +1187,7 @@ select.waitlist-input { cursor: pointer; }
     height: calc(100dvh - 82px);
     z-index: 600;
     box-shadow: 4px 0 16px rgba(0,0,0,0.12);
+    border-radius: 0 0 22px 22px;
   }
   #sidebar.open { left: 0; }
   #sidebarBackdrop.open { display: block; }
@@ -1152,7 +1205,8 @@ select.waitlist-input { cursor: pointer; }
   .card-desc { font-size: 12px; }
 
   #aboutBtn { bottom: 16px; right: 10px; padding: 7px 12px; font-size: 12px; }
-  #addSpotBtn { top: 10px; right: 12px; left: auto; padding: 8px 14px; font-size: 12px; }
+  #addSpotBtn { top: 94px; right: 12px; left: auto; padding: 8px 14px; font-size: 12px; }
+  #pickBanner { top: 94px; }
 
   .spot-popup .leaflet-popup-content-wrapper { min-width: calc(100vw - 36px) !important; }
   .popup-card { min-width: calc(100vw - 36px); max-width: calc(100vw - 36px); padding: 16px; }

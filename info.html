@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Info & Help — Bogavante.ai</title>
+  <meta name="description" content="Everything about Bogavante.ai: how it works, contact, account & data, and how to delete your account." />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#D52613" />
+  <link rel="icon" type="image/png" sizes="32x32" href="FavIconBogavante.png">
+  <link rel="shortcut icon" type="image/png" href="FavIconBogavante.png">
+  <style>
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('Fonts/Inter-Variable.woff2') format('woff2');
+    }
+    :root {
+      --brand: #D52613;
+      --brand-dark: #a81d0d;
+      --bg: #fffdfb;
+      --panel: #faf6f2;
+      --border: #eee5de;
+      --text: #1f1812;
+      --muted: #8a7d72;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--brand); font-weight: 600; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(255,253,251,0.92);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar img { height: 44px; display: block; }
+    .back-link {
+      font-size: 14px; font-weight: 700;
+      padding: 8px 14px; border-radius: 999px;
+      border: 1.5px solid var(--brand);
+      white-space: nowrap;
+    }
+    .back-link:hover { background: rgba(213,38,19,0.08); text-decoration: none; }
+
+    .layout {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 40px;
+      padding: 36px 20px 80px;
+    }
+    nav.toc {
+      position: sticky; top: 92px;
+      align-self: start;
+      font-size: 13.5px;
+    }
+    nav.toc .toc-title {
+      font-size: 11px; font-weight: 800; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 10px;
+    }
+    nav.toc a {
+      display: block;
+      color: var(--muted); font-weight: 500;
+      padding: 6px 10px;
+      border-left: 2px solid var(--border);
+    }
+    nav.toc a:hover { color: var(--brand); border-left-color: var(--brand); text-decoration: none; }
+
+    main h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+    main .subtitle { color: var(--muted); font-size: 16px; margin-bottom: 36px; }
+    main section { margin-bottom: 44px; scroll-margin-top: 92px; }
+    main h2 {
+      font-size: 21px; font-weight: 800;
+      padding-bottom: 8px; margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    main h3 { font-size: 16px; font-weight: 700; margin: 18px 0 6px; }
+    main p, main li { font-size: 15px; color: #4b4038; margin-bottom: 10px; }
+    main ul, main ol { padding-left: 22px; margin-bottom: 10px; }
+
+    .callout {
+      display: flex; gap: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--brand);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      font-size: 14.5px;
+    }
+    .callout .ico { font-size: 20px; flex-shrink: 0; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0; }
+    .mini-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 14px;
+    }
+    .mini-card .emoji { font-size: 24px; display: block; margin-bottom: 8px; }
+    .mini-card strong { display: block; margin-bottom: 4px; }
+    code {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 7px;
+      font-size: 13.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 30px 20px 50px;
+      border-top: 1px solid var(--border);
+    }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; gap: 8px; padding-top: 24px; }
+      nav.toc { position: static; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+      nav.toc .toc-title { display: none; }
+      nav.toc a { border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; }
+      main h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo.svg" alt="Bogavante.ai" />
+  <a class="back-link" href="/">← Back to the map</a>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-title">On this page</div>
+    <a href="#about">About Bogavante</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#community">Community & ranks</a>
+    <a href="#account-data">Account & data</a>
+    <a href="#delete-account">Delete your account</a>
+    <a href="#contact">Contact</a>
+  </nav>
+
+  <main>
+    <h1>🦞 Bogavante.ai — Info & Help</h1>
+    <p class="subtitle">Everything you need to know about the world's tastiest lobster map.</p>
+
+    <section id="about">
+      <h2>About Bogavante</h2>
+      <p>Bogavante.ai is a <strong>community-curated guide to the best lobster spots worldwide</strong> — from beach shacks in Maine to fine dining in Hong Kong. Every spot on the map was added by a real person who ate there and lived to rate it.</p>
+      <p>The site was made by Lobster Lovers and built by <a href="https://ignaciomanzano.com" target="_blank" rel="noopener">ignacio</a> &amp; <a href="https://enrineer.com" target="_blank" rel="noopener">enrineer</a>. All data is stored in the EU. 🇪🇺</p>
+    </section>
+
+    <section id="how-it-works">
+      <h2>How it works</h2>
+      <div class="card-grid">
+        <div class="mini-card"><span class="emoji">🗺️</span><strong>Browse the map</strong>Explore lobster spots around the world. Filter by price, country or type, search, and sort the list.</div>
+        <div class="mini-card"><span class="emoji">✉️</span><strong>Sign in with a magic link</strong>No passwords. Enter your email, click the link we send you, pick a username and a profile picture — done.</div>
+        <div class="mini-card"><span class="emoji">📍</span><strong>Add your spots</strong>Drop a pin on the map (or paste coordinates), pick the price, country and type, write your honest review, and publish.</div>
+        <div class="mini-card"><span class="emoji">🦞</span><strong>Rate spots</strong>Give 1–5 lobsters to any spot. Averages show up for everyone.</div>
+      </div>
+      <h3>Spot types</h3>
+      <ul>
+        <li>⭐ <strong>Premium</strong> — fine dining, white tablecloth, wallet warning.</li>
+        <li>🍽️ <strong>Casual</strong> — solid restaurants for a proper lobster meal.</li>
+        <li>🌴 <strong>Beach Shack</strong> — sand between your toes, lobster in your hands.</li>
+      </ul>
+      <div class="callout"><span class="ico">⚓</span><span>To keep the map tasty, each user can add up to <strong>3 spots per 24 hours</strong>.</span></div>
+    </section>
+
+    <section id="community">
+      <h2>Community & ranks</h2>
+      <p>Hit the 🏆 trophy on the map to see the <strong>Lobster Leaderboard</strong>: top spotters (spots added) and top raters (spots rated).</p>
+      <ul>
+        <li><strong style="color:#b8860b">Gold name</strong> — the #1 contributor.</li>
+        <li><strong style="color:#8a8f98">Silver name</strong> — the #2 spotter.</li>
+        <li><strong style="color:#a4692f">Bronze name</strong> — the #3 spotter.</li>
+      </ul>
+      <p>Click any username anywhere on the site to see their public profile: picture, bio, and the spots they've added or rated.</p>
+    </section>
+
+    <section id="account-data">
+      <h2>Account & data</h2>
+      <p>To contribute you sign in with your email (magic link — we never see or store a password). We store:</p>
+      <ul>
+        <li>Your <strong>email address</strong> (for signing in and occasional service emails you agreed to in the Terms).</li>
+        <li>Your <strong>public profile</strong>: username, profile picture and bio.</li>
+        <li>The <strong>spots and ratings</strong> you contribute.</li>
+      </ul>
+      <p>Data is hosted in the EU on Supabase infrastructure. You accepted the Terms of Service &amp; Privacy Policy when creating your account; they're always available from the sign-in screen.</p>
+    </section>
+
+    <section id="delete-account">
+      <h2>Delete your account</h2>
+      <div class="callout"><span class="ico">🗑️</span>
+        <span>
+          To delete your account and personal data, send an email to
+          <a href="mailto:contact@bogavante.ai?subject=Delete%20my%20account">contact@bogavante.ai</a>
+          <strong>from the same email address you signed up with</strong>, with the subject
+          <code>Delete my account</code>.
+        </span>
+      </div>
+      <p>We will remove your profile (username, picture, bio), your ratings, and your login data within <strong>30 days</strong>. Spots you added may remain on the map (they're part of the community guide) but will no longer be linked to your account.</p>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Questions, bug reports, a lobster place we absolutely must know about?</p>
+      <ul>
+        <li>📧 Email: <a href="mailto:contact@bogavante.ai">contact@bogavante.ai</a></li>
+        <li>👋 Makers: <a href="https://ignaciomanzano.com" target="_blank" rel="noopener">ignaciomanzano.com</a> &amp; <a href="https://enrineer.com" target="_blank" rel="noopener">enrineer.com</a></li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<footer>🦞 Bogavante.ai · 🇪🇺 Data kept in the EU · <a href="/">Back to the map</a></footer>
+
+<!-- Vercel Web Analytics -->
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
